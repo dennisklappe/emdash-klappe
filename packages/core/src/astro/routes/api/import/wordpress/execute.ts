@@ -20,6 +20,11 @@ import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { BylineRepository } from "#db/repositories/byline.js";
 import { resolveImportByline } from "#import/utils.js";
+import {
+	attachPostTaxonomies,
+	preImportWxrTaxonomies,
+	type TaxonomyImportPlan,
+} from "#import/wxr-taxonomies.js";
 import type { EmDashHandlers, EmDashManifest } from "#types";
 import { slugify } from "#utils/slugify.js";
 
@@ -56,6 +61,21 @@ export interface ImportResult {
 	sections?: {
 		created: number;
 		skipped: number;
+	};
+	/** Taxonomy import results (categories, tags, custom taxonomies). */
+	taxonomies?: {
+		/** Terms newly created during this import, keyed by taxonomy name. */
+		termsCreated: Record<string, number>;
+		/** Existing terms that were re-used, keyed by taxonomy name. */
+		termsReused: Record<string, number>;
+		/** Total pivot rows (post <-> term) written to `content_taxonomies`. */
+		assignments: number;
+		/**
+		 * Custom taxonomy names from the WXR file that had no matching EmDash
+		 * definition and were therefore skipped. Lets the admin UI surface a
+		 * "create taxonomy X first" hint without re-running the import.
+		 */
+		missingTaxonomies: string[];
 	};
 }
 
@@ -107,6 +127,19 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			authorDisplayNames.set(author.login, author.displayName || author.login);
 		}
 
+		// Pre-create taxonomy terms (categories, tags, custom taxonomies) so
+		// per-post assignments can resolve to existing rows. Done before any
+		// content insert because WXR exports list terms at the top of the
+		// file but per-item assignments only reference them by slug.
+		const taxonomyPlan = await preImportWxrTaxonomies(
+			emdash.db,
+			wxr.posts,
+			wxr.categories,
+			wxr.tags,
+			wxr.terms,
+			config.locale,
+		);
+
 		// Import content (locale from config scopes all items)
 		const result = await importContent(
 			wxr.posts,
@@ -116,6 +149,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			attachmentMap,
 			config.locale,
 			authorDisplayNames,
+			taxonomyPlan,
 		);
 
 		// Import reusable blocks as sections (if enabled)
@@ -144,8 +178,9 @@ async function importContent(
 	emdash: EmDashHandlers,
 	manifest: EmDashManifest,
 	attachmentMap: Map<string, string>,
-	locale?: string,
-	authorDisplayNames?: Map<string, string>,
+	locale: string | undefined,
+	authorDisplayNames: Map<string, string> | undefined,
+	taxonomyPlan: TaxonomyImportPlan,
 ): Promise<ImportResult> {
 	const result: ImportResult = {
 		success: true,
@@ -153,6 +188,12 @@ async function importContent(
 		skipped: 0,
 		errors: [],
 		byCollection: {},
+		taxonomies: {
+			termsCreated: taxonomyPlan.termsCreated,
+			termsReused: taxonomyPlan.termsReused,
+			assignments: 0,
+			missingTaxonomies: taxonomyPlan.missingTaxonomies,
+		},
 	};
 
 	// Create content repository for checking existing items
@@ -260,6 +301,38 @@ async function importContent(
 			if (createResult.success) {
 				result.imported++;
 				result.byCollection[collection] = (result.byCollection[collection] || 0) + 1;
+
+				// Attach taxonomy assignments parsed from the WXR `<category>`
+				// elements. Failures here shouldn't fail the post import — the
+				// content row is already committed — so we log per-post errors
+				// into the same `errors` array but continue.
+				const newEntryId = createResult.data?.item.id;
+				if (newEntryId) {
+					try {
+						const written = await attachPostTaxonomies(
+							emdash.db,
+							collection,
+							newEntryId,
+							post,
+							taxonomyPlan,
+						);
+						if (result.taxonomies) {
+							result.taxonomies.assignments += written;
+						}
+					} catch (taxError) {
+						console.error(
+							`Failed to attach taxonomies for "${post.title || "Untitled"}":`,
+							taxError,
+						);
+						result.errors.push({
+							title: post.title || "Untitled",
+							error:
+								taxError instanceof Error && taxError.message
+									? `Imported but failed to attach taxonomies: ${taxError.message}`
+									: "Imported but failed to attach taxonomies",
+						});
+					}
+				}
 			} else {
 				result.errors.push({
 					title: post.title || "Untitled",
