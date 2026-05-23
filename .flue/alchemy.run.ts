@@ -37,7 +37,12 @@ const worker = await Worker(`emdash-triage-${STAGE}`, {
 			className: "TriageLabel",
 			sqlite: true,
 		}),
-		GITHUB_WEBHOOK_SECRET: process.env.GITHUB_WEBHOOK_SECRET ?? "dev-secret-rotate-me",
+		// IMPORTANT: default to empty string, NOT a sentinel value. The agent
+		// refuses any request when the secret is falsy (see triage-label.ts),
+		// so an empty default fails closed. A plausible-looking default like
+		// "dev-secret-rotate-me" would pass the existence check and accept
+		// webhooks signed with that public value.
+		GITHUB_WEBHOOK_SECRET: process.env.GITHUB_WEBHOOK_SECRET ?? "",
 		GITHUB_TOKEN: process.env.GITHUB_TOKEN ?? "",
 		CLOUDFLARE_GATEWAY_ID: process.env.CLOUDFLARE_GATEWAY_ID ?? "",
 		DRY_RUN: process.env.DRY_RUN ?? "false",

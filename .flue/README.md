@@ -55,3 +55,21 @@ The runner spawns `flue run triage-issue` with the issue payload and prints the 
 Phase 1 is cheap (~$0 per issue on Workers AI), fast (~5s end-to-end), and conservative (label + comment only). It runs on every new issue.
 
 Phase 2 is expensive (Opus on a 30-min runner), slow, and powerful (real shell, can write tests). It runs only on explicit maintainer opt-in. The split prevents bot rate-limit churn and bounds the blast radius of agent mistakes.
+
+## Threat model (Phase 2)
+
+The repro agent feeds attacker-controlled issue bodies into a prompt context with a `bash`-equipped sandbox and `GH_TOKEN` in env. Anyone can file an issue. The agent's "do not commit, do not push, do not curl arbitrary URLs" guardrails are **prompt-level only** -- a sufficiently clever issue body can argue them away.
+
+What blocks real abuse:
+
+1. **Maintainer label gate.** The workflow fires on `issues.labeled` with `label.name == 'triage:reproduce'`. A maintainer (with `issues:write`) has to apply that label before the agent ever sees the issue body. **This is the actual security boundary.** Don't apply `triage:reproduce` to an issue you wouldn't drop a fresh Opus into.
+2. **`contents: read` on the runner.** The workflow grants `contents: read`, so even a jailbroken agent can't push branches via `git push`. `GH_TOKEN` permissions are the floor; the agent never gets more than the workflow grants.
+3. **No third-party network in shell.** The `reproduce` skill explicitly forbids `curl`/`wget` against arbitrary URLs. Reading skills can override this; trust depends on (1).
+
+What a successful jailbreak _can_ do with the default token:
+
+- Comment on any issue / PR in the repo (the token has `issues: write`)
+- Apply / remove labels
+- Close issues
+
+A finer-grained PAT or a GitHub App installation token scoped to a single issue would mitigate this further. Worth doing before turning the workflow on broadly. Tracked in the Discussion for this PR.

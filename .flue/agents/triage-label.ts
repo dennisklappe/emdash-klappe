@@ -26,10 +26,6 @@ interface Env {
 	GITHUB_WEBHOOK_SECRET?: string;
 	// Set to "true" to skip GitHub writes and just log. Useful for first deploys.
 	DRY_RUN?: string;
-	// Set to "true" to skip HMAC verification. DEV ONLY — never enable in
-	// production. Used for local `flue run` prototyping where we can't
-	// easily sign the synthetic payload.
-	SKIP_HMAC?: string;
 }
 
 interface IssueWebhookPayload {
@@ -202,9 +198,15 @@ export function renderComment(triage: TriageResult, validAreaLabels: string[]): 
 		lines.push(`- ⚠️ Flagged as data-loss / security risk`);
 	}
 	lines.push("");
-	lines.push(`> ${triage.summary}`);
+	// Collapse any newlines the model may have produced into single spaces —
+	// `v.string()` permits `\n`, but a multi-line summary breaks the blockquote
+	// rendering (only the first line stays inside `> `, the rest leaks out).
+	const summary = triage.summary.replace(NEWLINE_RUN_RE, " ").trim();
+	lines.push(`> ${summary}`);
 	return lines.join("\n");
 }
+
+const NEWLINE_RUN_RE = /\s*[\r\n]+\s*/g;
 
 export default async function ({ init, req, env, log }: FlueContext<unknown, Env>) {
 	if (!req) {
@@ -219,18 +221,13 @@ export default async function ({ init, req, env, log }: FlueContext<unknown, Env
 	const deliveryId = req.headers.get("x-github-delivery") ?? "unknown";
 
 	const secret = env.GITHUB_WEBHOOK_SECRET;
-	const skipVerify = env.SKIP_HMAC === "true";
-	if (skipVerify) {
-		log.warn("SKIP_HMAC=true — webhook signature verification disabled (dev only)");
-	} else {
-		if (!secret) {
-			log.error("missing GITHUB_WEBHOOK_SECRET");
-			return new Response("server misconfigured", { status: 500 });
-		}
-		if (!(await verifyGitHubSignature(secret, rawBody, signature))) {
-			log.warn("invalid webhook signature", { event, deliveryId });
-			return new Response("invalid signature", { status: 401 });
-		}
+	if (!secret) {
+		log.error("missing GITHUB_WEBHOOK_SECRET");
+		return new Response("server misconfigured", { status: 500 });
+	}
+	if (!(await verifyGitHubSignature(secret, rawBody, signature))) {
+		log.warn("invalid webhook signature", { event, deliveryId });
+		return new Response("invalid signature", { status: 401 });
 	}
 
 	if (event === "ping") {

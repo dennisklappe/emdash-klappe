@@ -34,8 +34,16 @@ interface Fixture {
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = resolve(HERE, "..", "fixtures");
 const FLUE_DIR = resolve(HERE, "..");
+const ISSUE_NUMBER_RE = /^\d+$/;
 
 async function loadFixture(arg: string, live: boolean): Promise<Fixture> {
+	// `arg` is interpolated into a shell command (gh issue view) and a file
+	// path (fixtures/issue-${arg}.json). Restrict to plain integers so a
+	// `--apply '1 && rm -rf /'` style input can't smuggle metachars through
+	// execSync or path traversal through the fixture lookup.
+	if (!ISSUE_NUMBER_RE.test(arg)) {
+		throw new Error(`issueNumber must be a positive integer, got: ${JSON.stringify(arg)}`);
+	}
 	if (live) {
 		const raw = execSync(
 			`gh issue view ${arg} --repo emdash-cms/emdash --json number,title,body,labels`,

@@ -62,6 +62,17 @@ jobs:
           cd .flue
           pnpm install --frozen-lockfile
 
+      - name: Ensure result labels exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # The agent applies one of these labels after the reproduction
+          # attempt. `gh label create --force` is idempotent: it creates the
+          # label if missing, updates colour/description if present.
+          gh label create reproduced --color "0e8a16" --description "Bug reproduced by an automated attempt" --force
+          gh label create not-reproduced --color "fbca04" --description "Automated reproduction attempt could not observe the reported behaviour" --force
+          gh label create repro-skipped --color "c5def5" --description "Automated reproduction was not attempted (host-specific, requires user data, etc.)" --force
+
       - name: Run repro agent
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

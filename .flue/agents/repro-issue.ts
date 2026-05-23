@@ -166,7 +166,10 @@ export default async function ({ init, payload, log }: FlueContext<ReproPayload>
 	//   - reproduced     → reproduction confirmed, ready for fix work
 	//   - not-reproduced → could not reproduce, may be user error or stale
 	//   - repro-skipped  → host-specific, requires user data, etc.
-	// These labels don't exist yet; the workflow creates them lazily.
+	// These labels are precreated by the workflow's "Ensure result labels
+	// exist" step (gh label create --force). The try/catch below is a
+	// belt-and-braces guard in case that step was skipped or the label was
+	// deleted between runs.
 	const resultLabel = repro.skipped
 		? "repro-skipped"
 		: repro.reproduced
@@ -193,9 +196,16 @@ function renderReproComment(triage: TriageResult, repro: ReproResult): string {
 		lines.push(`❌ Not reproduced — tried \`${repro.approach}\``);
 	}
 	lines.push("");
-	lines.push("```");
+	// `repro.notes` is a transcript of bash commands + their captured output
+	// against an EmDash checkout — grep, test runs, file reads against markdown
+	// files. Triple backticks inside the captured output (very common in this
+	// monorepo: docs/, README.md, every plugin's docs) would otherwise break
+	// the fence and leak unformatted markdown into the rest of the comment.
+	// Use a fence one backtick longer than the longest run we see in notes.
+	const fence = longestBacktickFence(repro.notes);
+	lines.push(fence);
 	lines.push(repro.notes);
-	lines.push("```");
+	lines.push(fence);
 	if (repro.suggestedNextStep.trim().length > 0) {
 		lines.push("");
 		lines.push(`> ${repro.suggestedNextStep}`);
@@ -203,4 +213,22 @@ function renderReproComment(triage: TriageResult, repro: ReproResult): string {
 	lines.push("");
 	lines.push(`_Classifier context: severity=\`${triage.severity}\`, kind=\`${triage.kind}\`._`);
 	return lines.join("\n");
+}
+
+const BACKTICK_RUN_RE = /`+/g;
+
+/**
+ * Return a backtick fence that is guaranteed to not appear inside `body`,
+ * by counting the longest run of backticks in the body and using one more.
+ * Markdown fences require at least 3 backticks.
+ */
+function longestBacktickFence(body: string): string {
+	let longest = 0;
+	const matches = body.match(BACKTICK_RUN_RE);
+	if (matches) {
+		for (const m of matches) {
+			if (m.length > longest) longest = m.length;
+		}
+	}
+	return "`".repeat(Math.max(3, longest + 1));
 }
