@@ -69,10 +69,6 @@ export default async function ({ init, payload, log }: FlueContext<TriagePayload
 	}
 
 	const harness = await init({
-		// All model traffic goes through our Cloudflare AI Gateway so it's
-		// observable and cost-tracked alongside /bonk and /review. Requires
-		// CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_GATEWAY_ID / CLOUDFLARE_API_TOKEN
-		// in env. Use kimi for cheap classifications by default.
 		model:
 			process.env.FLUE_TRIAGE_MODEL ?? "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.6",
 	});

@@ -25,7 +25,7 @@ It does NOT push branches, commit anything, or attempt fixes.
 
 ## Local prototyping
 
-All model traffic routes through our Cloudflare AI Gateway, same path `/bonk` and `/review` take. Required env (mirroring the workflow secrets `CF_AI_GATEWAY_*`):
+Required env:
 
 ```bash
 export CLOUDFLARE_ACCOUNT_ID=<account uuid>
@@ -58,18 +58,29 @@ Phase 2 is expensive (Opus on a 30-min runner), slow, and powerful (real shell, 
 
 ## Threat model (Phase 2)
 
-The repro agent feeds attacker-controlled issue bodies into a prompt context with a `bash`-equipped sandbox and `GH_TOKEN` in env. Anyone can file an issue. The agent's "do not commit, do not push, do not curl arbitrary URLs" guardrails are **prompt-level only** -- a sufficiently clever issue body can argue them away.
+The repro agent feeds attacker-controlled issue bodies into a prompt context with a `bash`-equipped sandbox. Anyone can file an issue. The agent's "do not commit, do not push, do not curl arbitrary URLs" guardrails in `SKILL.md` are **prompt-level only** -- a sufficiently clever issue body can argue them away.
 
 What blocks real abuse:
 
-1. **Maintainer label gate.** The workflow fires on `issues.labeled` with `label.name == 'triage:reproduce'`. A maintainer (with `issues:write`) has to apply that label before the agent ever sees the issue body. **This is the actual security boundary.** Don't apply `triage:reproduce` to an issue you wouldn't drop a fresh Opus into.
-2. **`contents: read` on the runner.** The workflow grants `contents: read`, so even a jailbroken agent can't push branches via `git push`. `GH_TOKEN` permissions are the floor; the agent never gets more than the workflow grants.
-3. **No third-party network in shell.** The `reproduce` skill explicitly forbids `curl`/`wget` against arbitrary URLs. Reading skills can override this; trust depends on (1).
+1. **Maintainer label gate.** The workflow fires on `issues.labeled` with `label.name == 'triage:reproduce'`. A maintainer (with `issues:write`) has to apply that label before the agent ever sees the issue body. **This is the first security boundary.** Don't apply `triage:reproduce` to an issue you wouldn't drop a fresh Opus into.
+2. **Two-token split (`AGENT_GH_TOKEN` vs `ORCHESTRATOR_GH_TOKEN`).** Modelled on the [withastro/astro `issue-triage` setup](https://github.com/withastro/astro/blob/main/.flue/agents/issue-triage.ts):
+   - The agent's bash sandbox inherits **only** `AGENT_GH_TOKEN`, which is the workflow's default `GITHUB_TOKEN`. The job's `permissions:` block grants it `contents: read, issues: read` -- enough to clone the repo and run `gh issue view`, but **not** to comment, label, or close anything.
+   - The orchestrator (the TS code in `repro-issue.ts`) holds `ORCHESTRATOR_GH_TOKEN`, a GitHub App installation token minted by `actions/create-github-app-token`. This token has `issues: write` and is what actually posts the result comment and applies the result label.
+   - The orchestrator token is read from `process.env` in the agent's parent process and is **never passed into `local()`**, so the sandbox's bash tool cannot see or use it. A complete jailbreak of the agent's bash still cannot escalate to comment/label writes.
+3. **`contents: read` on the runner.** Even a jailbroken agent can't push branches via `git push`. `AGENT_GH_TOKEN` permissions are the floor; the sandbox never gets more than the workflow grants.
+4. **No third-party network in shell.** `SKILL.md` explicitly forbids `curl`/`wget` against arbitrary URLs. This is advisory; trust depends on (2) + (3) for the hard limits.
 
-What a successful jailbreak _can_ do with the default token:
+What a successful jailbreak of the agent's bash **can** do (worst case):
 
-- Comment on any issue / PR in the repo (the token has `issues: write`)
-- Apply / remove labels
-- Close issues
+- Read any issue / PR body in the repo (read-only).
+- `git clone` other public repos.
+- Run arbitrary code on the runner with the runner's network access (could `curl` an attacker host with anything in the sandbox env -- which is only `AGENT_GH_TOKEN`, `CI`, `NODE_ENV`).
 
-A finer-grained PAT or a GitHub App installation token scoped to a single issue would mitigate this further. Worth doing before turning the workflow on broadly. Tracked in the Discussion for this PR.
+What it **cannot** do:
+
+- Comment, label, or close any issue / PR (no write token in sandbox env).
+- Push to any branch (no `contents: write`).
+- Create or merge PRs.
+- Read the orchestrator's app token, the AI Gateway token, or any other workflow secret (`local()` filters host env by default).
+
+If we ever scope the agent's token even tighter (e.g. minting a third token with read access only to the single triggering issue), it goes in `AGENT_GH_TOKEN`. The orchestrator-token / sandbox-token boundary stays.

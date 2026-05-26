@@ -25,9 +25,13 @@ concurrency:
   group: auto-repro-${{ github.event.issue.number }}
   cancel-in-progress: false
 
+# Default-deny at workflow scope. Per-job permissions narrow further --
+# the repro job grants the runner's GITHUB_TOKEN only what the agent's
+# bash legitimately needs (issues: read for `gh issue view`,
+# contents: read for the checkout). All issue writes (comment, label)
+# happen with a separate app-token that the agent's bash never sees.
 permissions:
   contents: read
-  issues: write
 
 jobs:
   repro:
@@ -36,11 +40,27 @@ jobs:
       !github.event.issue.pull_request
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: read
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+
+      # Mint a separate app-token for orchestrator-only operations
+      # (posting the result comment, applying the result label,
+      # precreating the three result labels). The agent's bash never
+      # sees this token -- it stays in the workflow / TS orchestrator
+      # env, not in the local() sandbox's env. Even a complete agent
+      # jailbreak can't escalate to comment/label writes.
+      - name: Mint app token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       - name: Setup PNPM
         uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
@@ -64,7 +84,9 @@ jobs:
 
       - name: Ensure result labels exist
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Label creation requires write; use the app token so the
+          # default GITHUB_TOKEN can stay read-only.
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           # The agent applies one of these labels after the reproduction
           # attempt. `gh label create --force` is idempotent: it creates the
@@ -75,10 +97,16 @@ jobs:
 
       - name: Run repro agent
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # All model traffic goes through our Cloudflare AI Gateway --
-          # same path /bonk and /review take, so cost tracking and
-          # request logs live in one place.
+          # Read-only token the agent's bash inherits via local({ env: { GH_TOKEN } }).
+          # Permits: `gh issue view`, `git clone`, repo reads. Cannot
+          # comment, label, or close anything.
+          AGENT_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Privileged token the orchestrator uses for the result comment
+          # and result label. This MUST NOT be exposed to local({ env }):
+          # see agents/repro-issue.ts where only AGENT_GH_TOKEN is passed
+          # through, and ORCHESTRATOR_GH_TOKEN stays in process.env for
+          # the TS code's use only.
+          ORCHESTRATOR_GH_TOKEN: ${{ steps.app-token.outputs.token }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_AI_GATEWAY_ACCOUNT_ID }}
           CLOUDFLARE_GATEWAY_ID: ${{ secrets.CF_AI_GATEWAY_NAME }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_AI_GATEWAY_TOKEN }}

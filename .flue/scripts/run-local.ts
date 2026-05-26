@@ -5,7 +5,7 @@
 // shows the structured triage result, the labels that would be applied,
 // and the comment that would be posted.
 //
-// All model traffic routes through our Cloudflare AI Gateway. Required env:
+// Required env:
 //   CLOUDFLARE_ACCOUNT_ID=<account uuid>
 //   CLOUDFLARE_GATEWAY_ID=<gateway slug>
 //   CLOUDFLARE_API_TOKEN=<gateway-scoped token>
@@ -109,10 +109,7 @@ async function main() {
 		"CLOUDFLARE_API_TOKEN",
 	].filter((k) => !process.env[k]);
 	if (missingGateway.length > 0) {
-		console.error(`missing required env for Cloudflare AI Gateway: ${missingGateway.join(", ")}`);
-		console.error(
-			"set these from the same source bonk.yml / review.yml use (CF_AI_GATEWAY_* secrets locally).",
-		);
+		console.error(`missing required env: ${missingGateway.join(", ")}`);
 		process.exit(2);
 	}
 

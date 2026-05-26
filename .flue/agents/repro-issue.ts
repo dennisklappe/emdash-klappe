@@ -80,18 +80,32 @@ export default async function ({ init, payload, log }: FlueContext<ReproPayload>
 	const issueBody = payload.issueBody ?? "";
 	const owner = payload.owner ?? "emdash-cms";
 	const repo = payload.repo ?? "emdash";
-	const githubToken = process.env.GITHUB_TOKEN;
+
+	// Two-token split, mirroring the .agents/skills/triage pattern in
+	// withastro/astro. The agent's bash gets AGENT_GH_TOKEN (read-only,
+	// the workflow's default GITHUB_TOKEN). Privileged writes (comment,
+	// label) use ORCHESTRATOR_GH_TOKEN (a GitHub App installation token
+	// minted in the workflow). The orchestrator token is read here from
+	// process.env and never crosses into the local() sandbox, so a
+	// jailbroken agent cannot escalate to comment/label writes even if
+	// it argues its way past the SKILL.md prohibitions.
+	const agentToken = process.env.AGENT_GH_TOKEN;
+	const orchestratorToken = process.env.ORCHESTRATOR_GH_TOKEN;
 
 	if (!issueNumber || !issueTitle) {
 		throw new Error("payload requires issueNumber and issueTitle");
 	}
-	if (!githubToken) {
-		throw new Error("repro-issue requires GITHUB_TOKEN to post the result comment");
+	if (!agentToken) {
+		throw new Error("repro-issue requires AGENT_GH_TOKEN (read-only token for the sandbox)");
+	}
+	if (!orchestratorToken) {
+		throw new Error(
+			"repro-issue requires ORCHESTRATOR_GH_TOKEN (privileged token for comment/label writes)",
+		);
 	}
 
 	// Step 1: classify, using the lightweight model. We feed the triage
-	// into the reproduce skill so it can focus on the right area. All
-	// model traffic goes through our Cloudflare AI Gateway.
+	// into the reproduce skill so it can focus on the right area.
 	const classifyHarness = await init({
 		name: "classify",
 		model: "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.6",
@@ -100,7 +114,10 @@ export default async function ({ init, payload, log }: FlueContext<ReproPayload>
 
 	let availableAreaLabels: string[];
 	try {
-		availableAreaLabels = await fetchAreaLabels(githubToken, owner, repo);
+		// Reading the label list only needs `Metadata: read`, which both
+		// tokens have. Use the agent token here — keeps the orchestrator
+		// token reserved strictly for write operations.
+		availableAreaLabels = await fetchAreaLabels(agentToken, owner, repo);
 	} catch {
 		availableAreaLabels = [
 			"area/core",
@@ -125,18 +142,23 @@ export default async function ({ init, payload, log }: FlueContext<ReproPayload>
 
 	// Step 2: reproduce. Local sandbox: bash tool gets real PATH access.
 	// Pass GH_TOKEN explicitly — by default local() doesn't inherit it.
+	//
+	// CRITICAL: only AGENT_GH_TOKEN (read-only) is exposed here. The
+	// privileged ORCHESTRATOR_GH_TOKEN must not be in this env block.
+	// `local()` documents that it ignores host process.env unless
+	// explicitly passed, so leaving it out keeps the orchestrator token
+	// invisible to the agent's bash tool.
 	const reproHarness = await init({
 		name: "repro",
 		sandbox: local({
 			env: {
-				GH_TOKEN: githubToken,
+				GH_TOKEN: agentToken,
 				// Common pnpm/node env so the runner behaves as expected.
 				CI: "true",
 				NODE_ENV: "test",
 			},
 		}),
-		// Opus through the gateway — same model /bonk uses, same billing
-		// surface. Override with FLUE_REPRO_MODEL for experiments.
+		// Override with FLUE_REPRO_MODEL for experiments.
 		model: process.env.FLUE_REPRO_MODEL ?? "cloudflare-ai-gateway/claude-opus-4-7",
 	});
 	const reproSession = await reproHarness.session();
@@ -159,8 +181,10 @@ export default async function ({ init, payload, log }: FlueContext<ReproPayload>
 	});
 
 	// Step 3: post a single comment to the issue with the result.
+	// Uses the orchestrator token, NOT the agent token — the agent's
+	// bash sandbox cannot impersonate this comment.
 	const commentBody = renderReproComment(triage, repro);
-	await postIssueComment(githubToken, owner, repo, issueNumber, commentBody);
+	await postIssueComment(orchestratorToken, owner, repo, issueNumber, commentBody);
 
 	// Apply a follow-up label so the queue is searchable:
 	//   - reproduced     → reproduction confirmed, ready for fix work
@@ -176,7 +200,7 @@ export default async function ({ init, payload, log }: FlueContext<ReproPayload>
 			? "reproduced"
 			: "not-reproduced";
 	try {
-		await addLabels(githubToken, owner, repo, issueNumber, [resultLabel]);
+		await addLabels(orchestratorToken, owner, repo, issueNumber, [resultLabel]);
 	} catch (err) {
 		log.warn("failed to apply result label", { resultLabel, error: String(err) });
 	}
