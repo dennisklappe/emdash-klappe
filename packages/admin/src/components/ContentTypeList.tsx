@@ -205,7 +205,7 @@ function ContentTypeRow({ collection, onRequestDelete }: ContentTypeRowProps) {
 			</td>
 			<td className="px-4 py-3">
 				<div className="flex flex-wrap gap-1">
-					{collection.supports.map((feature) => (
+					{getDisplayedFeatures(collection).map((feature) => (
 						<Badge key={feature} variant="secondary">
 							{feature}
 						</Badge>
@@ -236,6 +236,23 @@ function ContentTypeRow({ collection, onRequestDelete }: ContentTypeRowProps) {
 			</td>
 		</tr>
 	);
+}
+
+/**
+ * Compute the list of feature chips to render for a collection.
+ *
+ * SEO is stored on its own `hasSeo` field rather than inside the
+ * `supports` array (the editor strips `"seo"` from `supports` before
+ * sending the PATCH), so the list view has to synthesize the chip
+ * from `hasSeo`. We de-duplicate to be tolerant of legacy seed rows
+ * that still have `"seo"` in `supports`.
+ */
+function getDisplayedFeatures(collection: SchemaCollection): string[] {
+	const features = [...collection.supports];
+	if (collection.hasSeo && !features.includes("seo")) {
+		features.push("seo");
+	}
+	return features;
 }
 
 function SourceBadge({ source }: { source?: string }) {
