@@ -17,6 +17,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import {
 	CodeBlockExtension,
+	ignoreCodeBlockMutation,
 	LANGUAGE_PICKER_POPUP_CLASS,
 	shouldDismissPicker,
 } from "../../src/components/editor/CodeBlockNode";
@@ -125,5 +126,47 @@ describe("shouldDismissPicker", () => {
 	it("does not dismiss when there is no popover or target", () => {
 		expect(shouldDismissPicker(null, popover)).toBe(false);
 		expect(shouldDismissPicker(document.createElement("div"), null)).toBe(false);
+	});
+});
+
+describe("ignoreCodeBlockMutation", () => {
+	// Regression for #1200: when a browser extension mutates the DOM around
+	// the language-picker overlay, ProseMirror must NOT recreate the node
+	// view (which would reset the picker's open state). Only edits to the
+	// editable code content should be observed.
+	let wrapper: HTMLElement;
+	let pre: HTMLElement;
+	let code: HTMLElement;
+	let overlayInput: HTMLInputElement;
+
+	beforeEach(() => {
+		wrapper = document.createElement("div");
+		pre = document.createElement("pre");
+		pre.className = "emdash-code-block";
+		code = document.createElement("code");
+		pre.appendChild(code);
+		const overlay = document.createElement("div");
+		overlayInput = document.createElement("input");
+		overlay.appendChild(overlayInput);
+		wrapper.append(pre, overlay);
+		document.body.appendChild(wrapper);
+	});
+
+	afterEach(() => wrapper.remove());
+
+	it("observes mutations inside the editable code content", () => {
+		expect(ignoreCodeBlockMutation({ type: "childList", target: code })).toBe(false);
+		const textNode = document.createTextNode("x");
+		code.appendChild(textNode);
+		expect(ignoreCodeBlockMutation({ type: "characterData", target: textNode })).toBe(false);
+	});
+
+	it("ignores mutations in the picker overlay (e.g. extension injection)", () => {
+		expect(ignoreCodeBlockMutation({ type: "childList", target: overlayInput })).toBe(true);
+		expect(ignoreCodeBlockMutation({ type: "attributes", target: overlayInput })).toBe(true);
+	});
+
+	it("always lets ProseMirror handle selection changes", () => {
+		expect(ignoreCodeBlockMutation({ type: "selection", target: overlayInput })).toBe(false);
 	});
 });

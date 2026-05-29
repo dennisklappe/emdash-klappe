@@ -214,6 +214,30 @@ function CodeBlockNodeView({ node, updateAttributes, selected }: NodeViewProps) 
 }
 
 /**
+ * Decide whether ProseMirror should ignore a DOM mutation inside this node
+ * view.
+ *
+ * The node view renders the editable code content *and* an interactive
+ * language-picker overlay. Browser extensions (password managers, autofill)
+ * mutate the DOM around the picker's input as you type; if ProseMirror
+ * reacts to those mutations it recreates the entire React node view, which
+ * throws away the picker's transient open state mid-edit and makes it
+ * vanish -- the reported "loses focus and closes" behaviour (issue #1200).
+ *
+ * Only mutations inside the editable code content (`pre.emdash-code-block`)
+ * are real edits ProseMirror must observe. Ignore everything else -- the
+ * overlay and anything injected into it -- so the node view is never
+ * recreated by picker UI or extension churn. Selection changes are always
+ * handled by ProseMirror.
+ */
+export function ignoreCodeBlockMutation(mutation: { type: string; target: Node }): boolean {
+	if (mutation.type === "selection") return false;
+	const node = mutation.target;
+	const el = node instanceof Element ? node : node.parentElement;
+	return !el?.closest("pre.emdash-code-block");
+}
+
+/**
  * TipTap extension: code block with an inline language picker node view.
  *
  * Drop-in replacement for StarterKit's default `codeBlock`. Configure
@@ -222,6 +246,8 @@ function CodeBlockNodeView({ node, updateAttributes, selected }: NodeViewProps) 
  */
 export const CodeBlockExtension = CodeBlock.extend({
 	addNodeView() {
-		return ReactNodeViewRenderer(CodeBlockNodeView);
+		return ReactNodeViewRenderer(CodeBlockNodeView, {
+			ignoreMutation: ({ mutation }) => ignoreCodeBlockMutation(mutation),
+		});
 	},
 });
