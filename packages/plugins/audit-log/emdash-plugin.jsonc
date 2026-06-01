@@ -12,7 +12,7 @@
 	// Trust contract. Reads content to capture before-state in
 	// update audit entries; declares the `entries` storage collection
 	// where audit log lives. No outbound network.
-	"capabilities": ["content:read"],
+	"capabilities": ["content:read", "content:write", "media:read"],
 	"allowedHosts": [],
 	"storage": {
 		"entries": { "indexes": ["timestamp", "action", "resourceType", "collection"] },

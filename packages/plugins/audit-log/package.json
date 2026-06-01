@@ -31,11 +31,13 @@
 	"devDependencies": {
 		"@emdash-cms/plugin-cli": "workspace:*",
 		"tsdown": "catalog:",
-		"typescript": "catalog:"
+		"typescript": "catalog:",
+		"vitest": "catalog:"
 	},
 	"scripts": {
 		"build": "node node_modules/@emdash-cms/plugin-cli/dist/index.mjs build",
 		"dev": "emdash-plugin dev",
+		"test": "vitest run",
 		"typecheck": "tsgo --noEmit"
 	},
 	"repository": {
