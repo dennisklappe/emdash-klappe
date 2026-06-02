@@ -2555,6 +2555,7 @@ export class EmDashRuntime {
 		cursor?: string;
 		limit?: number;
 		mimeType?: string | readonly string[];
+		q?: string;
 	}) {
 		return handleMediaList(this.db, params);
 	}
