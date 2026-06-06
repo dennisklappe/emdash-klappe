@@ -16,6 +16,7 @@
 import type { Kysely, Selectable } from "kysely";
 import { ulid } from "ulidx";
 
+import { invalidateEdgeCache } from "../../edge-cache/index.js";
 import { withTransaction } from "../transaction.js";
 import type { Database, MenuItemTable, MenuTable } from "../types.js";
 
@@ -369,6 +370,7 @@ export class MenuRepository {
 			}
 		});
 
+		invalidateEdgeCache();
 		const created = await this.findById(id);
 		if (!created) throw new Error("Failed to create menu");
 		return created;
@@ -383,6 +385,7 @@ export class MenuRepository {
 
 		if (Object.keys(values).length > 0) {
 			await this.db.updateTable("_emdash_menus").set(values).where("id", "=", id).execute();
+			invalidateEdgeCache();
 		}
 
 		return (await this.findById(id))!;
@@ -404,6 +407,7 @@ export class MenuRepository {
 			await trx.deleteFrom("_emdash_menu_items").where("menu_id", "=", id).execute();
 			await trx.deleteFrom("_emdash_menus").where("id", "=", id).execute();
 		});
+		invalidateEdgeCache();
 		return true;
 	}
 
@@ -493,6 +497,7 @@ export class MenuRepository {
 			.selectAll()
 			.where("id", "=", id)
 			.executeTakeFirstOrThrow();
+		invalidateEdgeCache();
 		return rowToMenuItem(row);
 	}
 
@@ -536,6 +541,7 @@ export class MenuRepository {
 			.selectAll()
 			.where("id", "=", itemId)
 			.executeTakeFirstOrThrow();
+		invalidateEdgeCache();
 		return rowToMenuItem(row);
 	}
 
@@ -546,7 +552,9 @@ export class MenuRepository {
 			.where("id", "=", itemId)
 			.where("menu_id", "=", menuId)
 			.execute();
-		return result[0]?.numDeletedRows !== 0n;
+		const deleted = result[0]?.numDeletedRows !== 0n;
+		if (deleted) invalidateEdgeCache();
+		return deleted;
 	}
 
 	/**
@@ -614,6 +622,7 @@ export class MenuRepository {
 				.execute();
 		});
 
+		invalidateEdgeCache();
 		return { itemCount: items.length };
 	}
 
@@ -622,6 +631,7 @@ export class MenuRepository {
 	 * malicious payload cannot move foreign items into this menu's siblings.
 	 */
 	async reorderItems(menuId: string, items: ReorderItem[]): Promise<MenuItem[]> {
+		invalidateEdgeCache();
 		return withTransaction(this.db, async (trx) => {
 			for (const item of items) {
 				await trx

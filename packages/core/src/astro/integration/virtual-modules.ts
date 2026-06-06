@@ -33,6 +33,9 @@ export const RESOLVED_VIRTUAL_DIALECT_ID = "\0" + VIRTUAL_DIALECT_ID;
 export const VIRTUAL_STORAGE_ID = "virtual:emdash/storage";
 export const RESOLVED_VIRTUAL_STORAGE_ID = "\0" + VIRTUAL_STORAGE_ID;
 
+export const VIRTUAL_EDGE_CACHE_ID = "virtual:emdash/edge-cache";
+export const RESOLVED_VIRTUAL_EDGE_CACHE_ID = "\0" + VIRTUAL_EDGE_CACHE_ID;
+
 export const VIRTUAL_ADMIN_REGISTRY_ID = "virtual:emdash/admin-registry";
 export const RESOLVED_VIRTUAL_ADMIN_REGISTRY_ID = "\0" + VIRTUAL_ADMIN_REGISTRY_ID;
 
@@ -122,6 +125,31 @@ export function generateStorageModule(storageEntrypoint?: string): string {
 	return `
 import { createStorage as _createStorage } from "${storageEntrypoint}";
 export const createStorage = _createStorage;
+`;
+}
+
+/**
+ * Generates the edge-cache virtual module.
+ *
+ * Statically imports the configured edge-cache backend's `createEdgeCache`
+ * factory and embeds its serializable config. When no edge cache is
+ * configured, exports `undefined` so the runtime invalidator becomes a no-op
+ * (Workers Caching purge off by default).
+ */
+export function generateEdgeCacheModule(
+	entrypoint?: string,
+	config?: Record<string, unknown>,
+): string {
+	if (!entrypoint) {
+		return [
+			`export const createEdgeCache = undefined;`,
+			`export const edgeCacheConfig = undefined;`,
+		].join("\n");
+	}
+	return `
+import { createEdgeCache as _createEdgeCache } from "${entrypoint}";
+export const createEdgeCache = _createEdgeCache;
+export const edgeCacheConfig = ${JSON.stringify(config ?? {})};
 `;
 }
 

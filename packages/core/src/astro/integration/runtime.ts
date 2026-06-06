@@ -9,6 +9,7 @@
 
 import type { AuthDescriptor, AuthProviderDescriptor } from "../../auth/types.js";
 import type { DatabaseDescriptor } from "../../db/adapters.js";
+import type { EdgeCacheDescriptor } from "../../edge-cache/types.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
 import type { ExperimentalConfig } from "../../registry/types.js";
@@ -151,6 +152,30 @@ export interface EmDashConfig {
 	 * Storage configuration (for media)
 	 */
 	storage?: StorageDescriptor;
+
+	/**
+	 * Optional platform edge-cache (Cloudflare Workers Caching) invalidation.
+	 *
+	 * Off by default. When configured, EmDash purges the platform cache that
+	 * sits in front of the Worker on content and chrome writes, so edits appear
+	 * on cached public pages without waiting for TTL expiry. Enable the
+	 * platform cache itself in `wrangler.jsonc` (`"cache": { "enabled": true }`)
+	 * and set a cacheable `Cache-Control` on public responses.
+	 *
+	 * Use a backend adapter:
+	 * - `workersCache()` from `@emdash-cms/cloudflare`
+	 *
+	 * @example
+	 * ```ts
+	 * import { workersCache } from "@emdash-cms/cloudflare";
+	 *
+	 * emdash({
+	 *   database: d1({ binding: "DB" }),
+	 *   edgeCache: workersCache({ mode: "purgeEverything" }),
+	 * })
+	 * ```
+	 */
+	edgeCache?: EdgeCacheDescriptor;
 	/**
 	 * Trusted plugins to load (run in main isolate)
 	 *

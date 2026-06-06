@@ -60,6 +60,10 @@
     "./cache/config": {
       "types": "./dist/cache/config.d.mts",
       "default": "./dist/cache/config.mjs"
+    },
+    "./cache/edge": {
+      "types": "./dist/cache/edge.d.mts",
+      "default": "./dist/cache/edge.mjs"
     }
   },
   "scripts": {

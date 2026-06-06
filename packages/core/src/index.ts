@@ -191,6 +191,15 @@ export type {
 } from "./storage/types.js";
 export { EmDashStorageError } from "./storage/types.js";
 
+// Edge cache (platform Workers Caching) invalidation
+export { invalidateEdgeCache } from "./edge-cache/index.js";
+export type {
+	EdgeCacheInvalidator,
+	EdgeCacheDescriptor,
+	EdgeCacheRuntimeConfig,
+	CreateEdgeCacheFn,
+} from "./edge-cache/types.js";
+
 // Plugin system
 export {
 	definePlugin,

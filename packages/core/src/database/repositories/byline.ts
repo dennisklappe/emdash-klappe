@@ -2,6 +2,7 @@ import { sql, type Kysely, type Selectable } from "kysely";
 import { ulid } from "ulidx";
 
 import { getBylineFieldDefs } from "../../bylines/field-defs-cache.js";
+import { invalidateEdgeCache } from "../../edge-cache/index.js";
 import {
 	clearRequestCacheEntry,
 	peekRequestCache,
@@ -778,6 +779,7 @@ export class BylineRepository {
 		if (!byline) {
 			throw new Error("Failed to create byline");
 		}
+		invalidateEdgeCache();
 		return byline;
 	}
 
@@ -820,6 +822,7 @@ export class BylineRepository {
 		if (touchedGroupShared) {
 			clearRequestCacheEntry(`byline-field-group-values:${group}`);
 		}
+		invalidateEdgeCache();
 
 		return await this.findById(id);
 	}
@@ -908,6 +911,7 @@ export class BylineRepository {
 			}
 		});
 
+		invalidateEdgeCache();
 		return true;
 	}
 

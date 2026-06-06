@@ -1,6 +1,7 @@
 import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import { invalidateEdgeCache } from "../../edge-cache/index.js";
 import { slugify } from "../../utils/slugify.js";
 import type { Database } from "../types.js";
 import { validateIdentifier } from "../validate.js";
@@ -190,6 +191,8 @@ export class ContentRepository {
 		`.execute(this.db);
 
 		// Fetch and return the created item
+		invalidateEdgeCache();
+
 		const item = await this.findById(type, id);
 		if (!item) {
 			throw new Error("Failed to create content");
@@ -602,6 +605,8 @@ export class ContentRepository {
 			.where("deleted_at" as never, "is", null)
 			.execute();
 
+		invalidateEdgeCache();
+
 		const updated = await this.findById(type, id);
 		if (!updated) {
 			throw new Error("Content not found");
@@ -624,6 +629,7 @@ export class ContentRepository {
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
+		invalidateEdgeCache();
 		return (result.numAffectedRows ?? 0n) > 0n;
 	}
 
@@ -640,6 +646,7 @@ export class ContentRepository {
 			AND deleted_at IS NOT NULL
 		`.execute(this.db);
 
+		invalidateEdgeCache();
 		return (result.numAffectedRows ?? 0n) > 0n;
 	}
 
@@ -665,6 +672,7 @@ export class ContentRepository {
 			AND deleted_at IS NOT NULL
 		`.execute(this.db);
 
+		invalidateEdgeCache();
 		return (result.numAffectedRows ?? 0n) > 0n;
 	}
 
@@ -882,6 +890,8 @@ export class ContentRepository {
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
+		invalidateEdgeCache();
+
 		const updated = await this.findById(type, id);
 		if (!updated) {
 			throw new Error("Content not found");
@@ -918,6 +928,8 @@ export class ContentRepository {
 			AND scheduled_at IS NOT NULL
 			AND deleted_at IS NULL
 		`.execute(this.db);
+
+		invalidateEdgeCache();
 
 		const updated = await this.findById(type, id);
 		if (!updated) {
@@ -1047,6 +1059,8 @@ export class ContentRepository {
 			`.execute(this.db);
 		}
 
+		invalidateEdgeCache();
+
 		const updated = await this.findById(type, id);
 		if (!updated) {
 			throw new Error("Content not found");
@@ -1098,6 +1112,8 @@ export class ContentRepository {
 			WHERE id = ${id}
 			AND deleted_at IS NULL
 		`.execute(this.db);
+
+		invalidateEdgeCache();
 
 		const updated = await this.findById(type, id);
 		if (!updated) {
@@ -1173,6 +1189,8 @@ export class ContentRepository {
 			WHERE id = ${id}
 			AND deleted_at IS NULL
 		`.execute(this.db);
+
+		invalidateEdgeCache();
 
 		const updated = await this.findById(type, id);
 		if (!updated) {

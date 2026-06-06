@@ -10,6 +10,7 @@ import type { Kysely } from "kysely";
 import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import type { Database } from "../database/types.js";
+import { invalidateEdgeCache } from "../edge-cache/index.js";
 import { getDb } from "../loader.js";
 import { peekRequestCache, requestCached } from "../request-cache.js";
 import type { Storage } from "../storage/types.js";
@@ -63,6 +64,9 @@ export function invalidateSiteSettingsCache(): void {
 	holder.version++;
 	holder.cached = null;
 	holder.cachedVersion = -1;
+	// Site settings (title, logo, SEO defaults) render into public pages —
+	// purge the platform edge cache so the change shows without waiting for TTL.
+	invalidateEdgeCache();
 }
 
 /**

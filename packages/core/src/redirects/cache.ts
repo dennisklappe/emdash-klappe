@@ -14,6 +14,7 @@
  */
 
 import type { Redirect } from "../database/repositories/redirect.js";
+import { invalidateEdgeCache } from "../edge-cache/index.js";
 import type { CompiledPattern } from "./patterns.js";
 import { compilePattern, interpolateDestination, matchPattern } from "./patterns.js";
 
@@ -41,6 +42,9 @@ let cachedRedirects: CachedRedirects | null = null;
  */
 export function invalidateRedirectCache(): void {
 	cachedRedirects = null;
+	// Redirect rules (and content slug changes, which create auto-redirects)
+	// affect public navigation — purge the platform edge cache.
+	invalidateEdgeCache();
 }
 
 /**

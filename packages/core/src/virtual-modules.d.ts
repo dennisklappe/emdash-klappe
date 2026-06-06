@@ -65,6 +65,14 @@ declare module "virtual:emdash/storage" {
 	export const createStorage: ((config: Record<string, unknown>) => Storage) | undefined;
 }
 
+declare module "virtual:emdash/edge-cache" {
+	import type { CreateEdgeCacheFn, EdgeCacheRuntimeConfig } from "./edge-cache/types.js";
+
+	// Can be undefined if no edge cache is configured.
+	export const createEdgeCache: CreateEdgeCacheFn | undefined;
+	export const edgeCacheConfig: EdgeCacheRuntimeConfig | undefined;
+}
+
 declare module "virtual:emdash/auth" {
 	import type { AuthResult } from "./auth/types.js";
 

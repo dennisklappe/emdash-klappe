@@ -33,7 +33,12 @@
  * ```
  */
 
-import type { AuthDescriptor, DatabaseDescriptor, StorageDescriptor } from "emdash";
+import type {
+	AuthDescriptor,
+	DatabaseDescriptor,
+	EdgeCacheDescriptor,
+	StorageDescriptor,
+} from "emdash";
 
 import type { PreviewDOConfig } from "./db/do-types.js";
 
@@ -284,3 +289,47 @@ export { cloudflareStream, type CloudflareStreamConfig } from "./media/stream.js
 
 // Re-export cache provider config helper (config-time)
 export { cloudflareCache, type CloudflareCacheConfig } from "./cache/config.js";
+
+/**
+ * Cloudflare Workers Caching purge configuration.
+ */
+export interface WorkersCacheConfig {
+	/**
+	 * Invalidation strategy. Only `"purgeEverything"` is implemented today
+	 * (purge the whole edge cache on any content/chrome write). Tag-based
+	 * purging is planned. Defaults to `"purgeEverything"`.
+	 */
+	mode?: "purgeEverything";
+}
+
+/**
+ * Cloudflare Workers Caching invalidation adapter.
+ *
+ * Purges the platform cache that sits in front of the Worker on content and
+ * chrome writes, so edits appear on cached public pages without waiting for
+ * TTL expiry. Enable the platform cache itself in `wrangler.jsonc`:
+ *
+ * ```jsonc
+ * { "cache": { "enabled": true } }
+ * ```
+ *
+ * and set a cacheable `Cache-Control` on public responses (Workers Caching
+ * only stores responses with one; requests with `Authorization` and responses
+ * with `Set-Cookie` / `Cache-Control: private|no-store` auto-bypass).
+ *
+ * @example
+ * ```ts
+ * import { d1, workersCache } from "@emdash-cms/cloudflare";
+ *
+ * emdash({
+ *   database: d1({ binding: "DB" }),
+ *   edgeCache: workersCache(),
+ * })
+ * ```
+ */
+export function workersCache(config: WorkersCacheConfig = {}): EdgeCacheDescriptor {
+	return {
+		entrypoint: "@emdash-cms/cloudflare/cache/edge",
+		config: { mode: config.mode ?? "purgeEverything" },
+	};
+}

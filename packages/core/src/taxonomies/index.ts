@@ -11,6 +11,7 @@
  * the right per-locale term.
  */
 
+import { invalidateEdgeCache } from "../edge-cache/index.js";
 import { resolveLocale, resolveLocaleChain } from "../i18n/resolve.js";
 import { getDb } from "../loader.js";
 import { peekRequestCache, requestCached, setRequestCacheEntry } from "../request-cache.js";
@@ -23,10 +24,12 @@ export interface TaxonomyQueryOptions {
 }
 
 /**
- * No-op — kept for API compatibility.
+ * Invalidate caches after a taxonomy write. Taxonomy terms render into public
+ * pages (term archives, tag lists, post categories), so purge the platform
+ * edge cache so the change appears without waiting for TTL.
  */
 export function invalidateTermCache(): void {
-	// Intentionally empty.
+	invalidateEdgeCache();
 }
 
 /**
