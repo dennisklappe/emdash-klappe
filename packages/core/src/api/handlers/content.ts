@@ -83,6 +83,27 @@ async function collectionHasSeo(db: Kysely<Database>, collection: string): Promi
 }
 
 /**
+ * Check if a collection is locked. Locked collections allow editing existing
+ * entries but reject creation and deletion (the "locked" support flag). The
+ * `supports` column is a JSON array; a missing or malformed value is treated
+ * as "not locked" so a parse problem never blocks normal writes.
+ */
+async function collectionIsLocked(db: Kysely<Database>, collection: string): Promise<boolean> {
+	const row = await db
+		.selectFrom("_emdash_collections")
+		.select("supports")
+		.where("slug", "=", collection)
+		.executeTakeFirst();
+	if (!row?.supports) return false;
+	try {
+		const parsed: unknown = JSON.parse(row.supports);
+		return Array.isArray(parsed) && parsed.includes("locked");
+	} catch {
+		return false;
+	}
+}
+
+/**
  * Hydrate SEO data on a single content item if the collection has SEO enabled.
  */
 async function hydrateSeo(
@@ -613,6 +634,16 @@ export async function handleContentCreate(
 	},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
+		if (await collectionIsLocked(db, collection)) {
+			return {
+				success: false,
+				error: {
+					code: "FORBIDDEN",
+					message: `Collection "${collection}" is locked and does not accept new entries.`,
+				},
+			};
+		}
+
 		const hasSeo = await collectionHasSeo(db, collection);
 
 		// Reject SEO input for non-SEO collections
@@ -1048,6 +1079,16 @@ export async function handleContentDelete(
 	id: string,
 ): Promise<ApiResult<{ deleted: true }>> {
 	try {
+		if (await collectionIsLocked(db, collection)) {
+			return {
+				success: false,
+				error: {
+					code: "FORBIDDEN",
+					message: `Collection "${collection}" is locked and entries cannot be deleted.`,
+				},
+			};
+		}
+
 		const deleted = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
@@ -1131,6 +1172,16 @@ export async function handleContentPermanentDelete(
 	id: string,
 ): Promise<ApiResult<{ deleted: true }>> {
 	try {
+		if (await collectionIsLocked(db, collection)) {
+			return {
+				success: false,
+				error: {
+					code: "FORBIDDEN",
+					message: `Collection "${collection}" is locked and entries cannot be deleted.`,
+				},
+			};
+		}
+
 		const repo = new ContentRepository(db);
 		const resolvedId = (await resolveIdIncludingTrashed(repo, collection, id)) ?? id;
 

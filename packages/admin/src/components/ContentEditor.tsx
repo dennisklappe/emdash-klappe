@@ -149,6 +149,12 @@ export interface ContentEditorProps {
 	supportsRevisions?: boolean;
 	/** Whether this collection supports preview */
 	supportsPreview?: boolean;
+	/**
+	 * Whether this collection is locked (the "locked" support flag): entries can
+	 * be edited but not created or deleted. When true, the delete control is
+	 * hidden. The server enforces the same rule.
+	 */
+	locked?: boolean;
 	/** Current user (for permission checks) */
 	currentUser?: CurrentUserInfo;
 	/** Available users for author selection (only shown to editors+) */
@@ -221,6 +227,7 @@ export function ContentEditor({
 	supportsDrafts = false,
 	supportsRevisions = false,
 	supportsPreview = false,
+	locked = false,
 	currentUser,
 	users,
 	onAuthorChange,
@@ -928,7 +935,7 @@ export function ContentEditor({
 											<p>{t`Updated: ${new Date(item.updatedAt).toLocaleString()}`}</p>
 										</div>
 									)}
-									{!isNew && onDelete && (
+									{!isNew && onDelete && !locked && (
 										<div className="pt-4 border-t">
 											<Dialog.Root disablePointerDismissal>
 												<Dialog.Trigger

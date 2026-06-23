@@ -58,6 +58,7 @@ const VALID_COLLECTION_SUPPORTS: ReadonlySet<string> = new Set<CollectionSupport
 	"scheduling",
 	"search",
 	"seo",
+	"locked",
 ]);
 
 function isCollectionSupport(value: unknown): value is CollectionSupport {

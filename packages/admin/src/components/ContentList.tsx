@@ -111,6 +111,13 @@ export interface ContentListProps {
 	/** Controlled date-range filter state. */
 	dateFilter?: ContentDateFilter;
 	onDateFilterChange?: (filter: ContentDateFilter) => void;
+	/**
+	 * When true, the collection is locked (the "locked" support flag): entries
+	 * can be edited but not created or deleted. Hides the "Add New" button and
+	 * the trash/delete controls. The server enforces the same rule, so this is
+	 * purely to keep the UI honest.
+	 */
+	locked?: boolean;
 }
 
 type ViewTab = "all" | "trash";
@@ -162,6 +169,7 @@ export function ContentList({
 	onAuthorFilterChange,
 	dateFilter = EMPTY_DATE_FILTER,
 	onDateFilterChange,
+	locked = false,
 }: ContentListProps) {
 	const { t } = useLingui();
 	const [activeTab, setActiveTab] = React.useState<ViewTab>("all");
@@ -247,14 +255,16 @@ export function ContentList({
 						/>
 					)}
 				</div>
-				<RouterLinkButton
-					to="/content/$collection/new"
-					params={{ collection }}
-					search={{ locale: activeLocale }}
-					icon={<Plus />}
-				>
-					{t`Add New`}
-				</RouterLinkButton>
+				{!locked && (
+					<RouterLinkButton
+						to="/content/$collection/new"
+						params={{ collection }}
+						search={{ locale: activeLocale }}
+						icon={<Plus />}
+					>
+						{t`Add New`}
+					</RouterLinkButton>
+				)}
 			</div>
 
 			{/* Search */}
@@ -361,6 +371,8 @@ export function ContentList({
 										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
 											{activeSearch ? (
 												t`No results for "${activeSearch}"`
+											) : locked ? (
+												t`No ${collectionLabel.toLowerCase()} yet.`
 											) : (
 												<>
 													{t`No ${collectionLabel.toLowerCase()} yet.`}{" "}
@@ -388,7 +400,7 @@ export function ContentList({
 											key={item.id}
 											item={item}
 											collection={collection}
-											onDelete={onDelete}
+											onDelete={locked ? undefined : onDelete}
 											onDuplicate={onDuplicate}
 											showLocale={!!i18n}
 											urlPattern={urlPattern}
@@ -486,7 +498,7 @@ export function ContentList({
 											key={item.id}
 											item={item}
 											onRestore={onRestore}
-											onPermanentDelete={onPermanentDelete}
+											onPermanentDelete={locked ? undefined : onPermanentDelete}
 										/>
 									))
 								)}
@@ -826,42 +838,44 @@ function ContentListItem({
 					>
 						<Copy className="h-4 w-4" aria-hidden="true" />
 					</Button>
-					<Dialog.Root disablePointerDismissal>
-						<Dialog.Trigger
-							render={(p) => (
-								<Button
-									{...p}
-									variant="ghost"
-									shape="square"
-									aria-label={t`Move ${title} to trash`}
-								>
-									<Trash className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
-								</Button>
-							)}
-						/>
-						<Dialog className="p-6" size="sm">
-							<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
-							<Dialog.Description className="text-kumo-subtle">
-								{t`Move "${title}" to trash? You can restore it later.`}
-							</Dialog.Description>
-							<div className="mt-6 flex justify-end gap-2">
-								<Dialog.Close
-									render={(p) => (
-										<Button {...p} variant="secondary">
-											{t`Cancel`}
-										</Button>
-									)}
-								/>
-								<Dialog.Close
-									render={(p) => (
-										<Button {...p} variant="destructive" onClick={() => onDelete?.(item.id)}>
-											{t`Move to Trash`}
-										</Button>
-									)}
-								/>
-							</div>
-						</Dialog>
-					</Dialog.Root>
+					{onDelete && (
+						<Dialog.Root disablePointerDismissal>
+							<Dialog.Trigger
+								render={(p) => (
+									<Button
+										{...p}
+										variant="ghost"
+										shape="square"
+										aria-label={t`Move ${title} to trash`}
+									>
+										<Trash className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
+									</Button>
+								)}
+							/>
+							<Dialog className="p-6" size="sm">
+								<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
+								<Dialog.Description className="text-kumo-subtle">
+									{t`Move "${title}" to trash? You can restore it later.`}
+								</Dialog.Description>
+								<div className="mt-6 flex justify-end gap-2">
+									<Dialog.Close
+										render={(p) => (
+											<Button {...p} variant="secondary">
+												{t`Cancel`}
+											</Button>
+										)}
+									/>
+									<Dialog.Close
+										render={(p) => (
+											<Button {...p} variant="destructive" onClick={() => onDelete?.(item.id)}>
+												{t`Move to Trash`}
+											</Button>
+										)}
+									/>
+								</div>
+							</Dialog>
+						</Dialog.Root>
+					)}
 				</div>
 			</td>
 		</tr>
@@ -895,48 +909,50 @@ function TrashedListItem({ item, onRestore, onPermanentDelete }: TrashedListItem
 					>
 						<ArrowCounterClockwise className="h-4 w-4 text-kumo-brand" aria-hidden="true" />
 					</Button>
-					<Dialog.Root disablePointerDismissal>
-						<Dialog.Trigger
-							render={(p) => (
-								<Button
-									{...p}
-									variant="ghost"
-									shape="square"
-									aria-label={t`Permanently delete ${title}`}
-								>
-									<Trash className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
-								</Button>
-							)}
-						/>
-						<Dialog className="p-6" size="sm">
-							<Dialog.Title className="text-lg font-semibold">
-								{t`Delete Permanently?`}
-							</Dialog.Title>
-							<Dialog.Description className="text-kumo-subtle">
-								{t`Permanently delete "${title}"? This cannot be undone.`}
-							</Dialog.Description>
-							<div className="mt-6 flex justify-end gap-2">
-								<Dialog.Close
-									render={(p) => (
-										<Button {...p} variant="secondary">
-											{t`Cancel`}
-										</Button>
-									)}
-								/>
-								<Dialog.Close
-									render={(p) => (
-										<Button
-											{...p}
-											variant="destructive"
-											onClick={() => onPermanentDelete?.(item.id)}
-										>
-											{t`Delete Permanently`}
-										</Button>
-									)}
-								/>
-							</div>
-						</Dialog>
-					</Dialog.Root>
+					{onPermanentDelete && (
+						<Dialog.Root disablePointerDismissal>
+							<Dialog.Trigger
+								render={(p) => (
+									<Button
+										{...p}
+										variant="ghost"
+										shape="square"
+										aria-label={t`Permanently delete ${title}`}
+									>
+										<Trash className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
+									</Button>
+								)}
+							/>
+							<Dialog className="p-6" size="sm">
+								<Dialog.Title className="text-lg font-semibold">
+									{t`Delete Permanently?`}
+								</Dialog.Title>
+								<Dialog.Description className="text-kumo-subtle">
+									{t`Permanently delete "${title}"? This cannot be undone.`}
+								</Dialog.Description>
+								<div className="mt-6 flex justify-end gap-2">
+									<Dialog.Close
+										render={(p) => (
+											<Button {...p} variant="secondary">
+												{t`Cancel`}
+											</Button>
+										)}
+									/>
+									<Dialog.Close
+										render={(p) => (
+											<Button
+												{...p}
+												variant="destructive"
+												onClick={() => onPermanentDelete?.(item.id)}
+											>
+												{t`Delete Permanently`}
+											</Button>
+										)}
+									/>
+								</div>
+							</Dialog>
+						</Dialog.Root>
+					)}
 				</div>
 			</td>
 		</tr>

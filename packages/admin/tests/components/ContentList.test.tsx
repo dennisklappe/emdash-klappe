@@ -255,6 +255,33 @@ describe("ContentList", () => {
 		});
 	});
 
+	describe("locked collection", () => {
+		it("shows the Add New button when not locked", async () => {
+			const screen = await render(<ContentList {...defaultProps} items={[]} />);
+			await expect.element(screen.getByRole("link", { name: /Add New/ })).toBeInTheDocument();
+		});
+
+		it("hides the Add New button when locked", async () => {
+			const screen = await render(<ContentList {...defaultProps} items={[]} locked />);
+			expect(screen.getByRole("link", { name: /Add New/ }).query()).toBeNull();
+		});
+
+		it("hides the empty-state create link when locked", async () => {
+			const screen = await render(<ContentList {...defaultProps} items={[]} locked />);
+			await expect.element(screen.getByText(NO_POSTS_YET_REGEX)).toBeInTheDocument();
+			expect(screen.getByText("Create your first one").query()).toBeNull();
+		});
+
+		it("hides the move-to-trash button when locked", async () => {
+			const onDelete = vi.fn();
+			const items = [makeItem({ id: "item_1", data: { title: "Post" } })];
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} onDelete={onDelete} locked />,
+			);
+			expect(screen.getByRole("button", { name: "Move Post to trash" }).query()).toBeNull();
+		});
+	});
+
 	describe("restore", () => {
 		it("calls onRestore when restore button is clicked", async () => {
 			const onRestore = vi.fn();

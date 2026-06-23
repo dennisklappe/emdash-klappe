@@ -84,7 +84,13 @@ export type CollectionSupport =
 	| "preview"
 	| "scheduling"
 	| "search"
-	| "seo";
+	| "seo"
+	// "locked": entries can be edited but not created or deleted. Useful for
+	// fixed collections that map one-to-one to hardcoded routes (for example a
+	// "Pages" or "Site sections" collection) where editors should change
+	// existing entries but never add or remove them. The admin hides the create
+	// and delete controls, and the create/delete handlers return 403.
+	| "locked";
 
 /**
  * Sources for how a collection was created
