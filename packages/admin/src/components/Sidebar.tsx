@@ -628,7 +628,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 							aria-hidden="true"
 						/>
 						<span className="emdash-brand-text font-semibold truncate">
-							{manifest.admin?.siteName || "Klappe.dev"}
+							{manifest.admin?.siteName || "[klappe.dev]"}
 						</span>
 					</Link>
 				</KumoSidebar.Header>

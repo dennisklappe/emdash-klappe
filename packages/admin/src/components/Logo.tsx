@@ -60,19 +60,19 @@ export function LogoIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 /**
- * Full brand wordmark, rendered as bold "Klappe.dev" text.
+ * Full brand wordmark, rendered as bold "[klappe.dev]" text.
  * Consumers size it via a height class (e.g. `h-10`); the text scales to fill
  * that height and inherits the surrounding text color via `currentColor`.
  */
 export function LogoLockup({ className, ...props }: React.SVGProps<SVGSVGElement>) {
 	return (
 		<svg
-			viewBox="0 0 200 40"
+			viewBox="0 0 220 40"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
 			className={className}
 			role="img"
-			aria-label="Klappe.dev"
+			aria-label="klappe.dev"
 			preserveAspectRatio="xMidYMid meet"
 			{...props}
 		>
@@ -85,7 +85,7 @@ export function LogoLockup({ className, ...props }: React.SVGProps<SVGSVGElement
 				fontWeight="700"
 				letterSpacing="-0.5"
 			>
-				Klappe.dev
+				[klappe.dev]
 			</text>
 		</svg>
 	);
