@@ -84,7 +84,13 @@ export type CollectionSupport =
 	| "preview"
 	| "scheduling"
 	| "search"
-	| "seo";
+	| "seo"
+	// "locked": entries can be edited but not created or deleted. Useful for
+	// fixed collections that map one-to-one to hardcoded routes (for example a
+	// "Pages" or "Site sections" collection) where editors should change
+	// existing entries but never add or remove them. The admin hides the create
+	// and delete controls, and the create/delete handlers return 403.
+	| "locked";
 
 /**
  * Sources for how a collection was created
@@ -152,6 +158,7 @@ export interface FieldWidgetOptions {
 	showPreview?: boolean; // For image/file
 	collection?: string; // For reference - which collection to reference
 	allowMultiple?: boolean; // For reference
+	max?: number; // For the "stars" widget - highest rating (default 5)
 	[key: string]: unknown;
 }
 
@@ -197,6 +204,11 @@ export interface Field {
 	unique: boolean;
 	defaultValue?: unknown;
 	validation?: FieldValidation;
+	/**
+	 * Editor widget for this field. A bare name selects a built-in widget
+	 * (currently `"stars"` for integer/number fields, using `options.max`).
+	 * A `"pluginId:widgetName"` value selects a plugin-provided widget.
+	 */
 	widget?: string;
 	options?: FieldWidgetOptions;
 	sortOrder: number;

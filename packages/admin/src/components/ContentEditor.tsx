@@ -50,6 +50,7 @@ import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.j
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
 import { RepeaterField } from "./RepeaterField.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
+import { BUILTIN_WIDGET_STARS, StarRatingField } from "./StarRatingField.js";
 
 /** Autosave debounce delay in milliseconds */
 const AUTOSAVE_DELAY = 2000;
@@ -149,6 +150,12 @@ export interface ContentEditorProps {
 	supportsRevisions?: boolean;
 	/** Whether this collection supports preview */
 	supportsPreview?: boolean;
+	/**
+	 * Whether this collection is locked (the "locked" support flag): entries can
+	 * be edited but not created or deleted. When true, the delete control is
+	 * hidden. The server enforces the same rule.
+	 */
+	locked?: boolean;
 	/** Current user (for permission checks) */
 	currentUser?: CurrentUserInfo;
 	/** Available users for author selection (only shown to editors+) */
@@ -221,6 +228,7 @@ export function ContentEditor({
 	supportsDrafts = false,
 	supportsRevisions = false,
 	supportsPreview = false,
+	locked = false,
 	currentUser,
 	users,
 	onAuthorChange,
@@ -928,7 +936,7 @@ export function ContentEditor({
 											<p>{t`Updated: ${new Date(item.updatedAt).toLocaleString()}`}</p>
 										</div>
 									)}
-									{!isNew && onDelete && (
+									{!isNew && onDelete && !locked && (
 										<div className="pt-4 border-t">
 											<Dialog.Root disablePointerDismissal>
 												<Dialog.Trigger
@@ -1116,6 +1124,28 @@ function FieldRenderer({
 	const labelClass = minimal ? "text-kumo-subtle/50 text-xs font-normal" : undefined;
 
 	const handleChange = React.useCallback((v: unknown) => onChange(name, v), [onChange, name]);
+
+	// Built-in widgets are referenced by a bare name (no "pluginId:" prefix).
+	// They override the default editor for their field kind without a plugin.
+	if (
+		field.widget === BUILTIN_WIDGET_STARS &&
+		(field.kind === "number" || field.kind === "integer")
+	) {
+		const widgetOptions =
+			field.options && !Array.isArray(field.options) ? field.options : undefined;
+		const max = typeof widgetOptions?.max === "number" ? widgetOptions.max : undefined;
+		return (
+			<StarRatingField
+				id={id}
+				label={label}
+				value={value}
+				onChange={handleChange}
+				max={max}
+				required={field.required}
+				minimal={minimal}
+			/>
+		);
+	}
 
 	// Check for plugin field widget override
 	if (field.widget) {

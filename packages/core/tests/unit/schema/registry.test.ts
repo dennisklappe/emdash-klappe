@@ -66,6 +66,17 @@ describe("SchemaRegistry", () => {
 			expect(collection.supports).toEqual([]);
 		});
 
+		it("accepts and round-trips the 'locked' support flag", async () => {
+			await registry.createCollection({
+				slug: "site_pages",
+				label: "Pages",
+				supports: ["drafts", "locked"],
+			});
+
+			const reloaded = await registry.getCollection("site_pages");
+			expect(reloaded?.supports).toContain("locked");
+		});
+
 		it("should create the content table when creating a collection", async () => {
 			await registry.createCollection({
 				slug: "articles",

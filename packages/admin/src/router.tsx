@@ -507,6 +507,7 @@ function ContentListPage() {
 			onAuthorFilterChange={setAuthorFilter}
 			dateFilter={dateFilter}
 			onDateFilterChange={setDateFilter}
+			locked={collectionConfig.supports.includes("locked")}
 		/>
 	);
 }
@@ -597,6 +598,15 @@ function ContentNewPage() {
 
 	if (!collectionConfig) {
 		return <NotFoundPage message={`Collection "${collection}" not found`} />;
+	}
+
+	// Locked collections do not accept new entries, so a directly-typed
+	// /content/{collection}/new URL must not present a usable create form.
+	// The server rejects the create call regardless; this keeps the UI honest.
+	if (collectionConfig.supports.includes("locked")) {
+		return (
+			<NotFoundPage message={`Collection "${collectionConfig.label}" does not accept new entries`} />
+		);
 	}
 
 	const handleSave = (payload: {
@@ -1061,6 +1071,7 @@ function ContentEditPage() {
 			supportsDrafts={collectionConfig.supports.includes("drafts")}
 			supportsRevisions={collectionConfig.supports.includes("revisions")}
 			supportsPreview={collectionConfig.supports.includes("preview")}
+			locked={collectionConfig.supports.includes("locked")}
 			currentUser={currentUser}
 			users={usersData?.items}
 			onAuthorChange={handleAuthorChange}
