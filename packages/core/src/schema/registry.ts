@@ -243,6 +243,7 @@ export class SchemaRegistry {
 					icon: input.icon ?? null,
 					supports: JSON.stringify(supports),
 					source: input.source ?? "manual",
+					group_name: input.group ?? null,
 					has_seo: hasSeo ? 1 : 0,
 					comments_enabled: input.commentsEnabled ? 1 : 0,
 					url_pattern: input.urlPattern ?? null,
@@ -296,6 +297,8 @@ export class SchemaRegistry {
 						input.urlPattern !== undefined
 							? (input.urlPattern ?? null)
 							: (existing.urlPattern ?? null),
+					group_name:
+						input.group !== undefined ? (input.group ?? null) : (existing.group ?? null),
 					has_seo: hasSeo ? 1 : 0,
 					comments_enabled:
 						input.commentsEnabled !== undefined
@@ -992,6 +995,7 @@ export class SchemaRegistry {
 			source: row.source && isCollectionSource(row.source) ? row.source : undefined,
 			hasSeo: row.has_seo === 1,
 			urlPattern: row.url_pattern ?? undefined,
+			group: row.group_name ?? undefined,
 			commentsEnabled: row.comments_enabled === 1,
 			commentsModeration:
 				moderation === "all" || moderation === "first_time" || moderation === "none"

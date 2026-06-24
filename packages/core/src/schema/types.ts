@@ -174,6 +174,13 @@ export interface Collection {
 	icon?: string;
 	supports: CollectionSupport[];
 	source?: CollectionSource;
+	/**
+	 * Optional sidebar group. Collections that share a `group` value are
+	 * rendered together under a collapsible header in the admin content
+	 * sidebar (for example `group: "Pages"`). Collections without a group
+	 * render ungrouped, as before.
+	 */
+	group?: string;
 	/** Whether this collection has SEO metadata fields enabled */
 	hasSeo: boolean;
 	/** URL pattern with {slug} placeholder (e.g. "/{slug}", "/blog/{slug}") */
@@ -229,6 +236,8 @@ export interface CreateCollectionInput {
 	icon?: string;
 	supports?: CollectionSupport[];
 	source?: CollectionSource;
+	/** Optional sidebar group (see `Collection.group`). */
+	group?: string;
 	urlPattern?: string;
 	hasSeo?: boolean;
 	commentsEnabled?: boolean;
@@ -243,6 +252,8 @@ export interface UpdateCollectionInput {
 	description?: string;
 	icon?: string;
 	supports?: CollectionSupport[];
+	/** Optional sidebar group (see `Collection.group`). Pass `null` to clear. */
+	group?: string | null;
 	urlPattern?: string;
 	hasSeo?: boolean;
 	commentsEnabled?: boolean;

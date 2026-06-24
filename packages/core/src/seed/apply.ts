@@ -148,6 +148,7 @@ export async function applySeed(
 						description: collection.description,
 						icon: collection.icon,
 						supports: collection.supports || [],
+						group: collection.group ?? null,
 						urlPattern: collection.urlPattern,
 						commentsEnabled: collection.commentsEnabled,
 					});
@@ -202,6 +203,7 @@ export async function applySeed(
 				icon: collection.icon,
 				supports: collection.supports || [],
 				source: "seed",
+				group: collection.group,
 				urlPattern: collection.urlPattern,
 				commentsEnabled: collection.commentsEnabled,
 			});

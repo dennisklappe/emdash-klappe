@@ -2039,6 +2039,7 @@ export class EmDashRuntime {
 					label: collection.label,
 					labelSingular: collection.labelSingular || collection.label,
 					supports: collection.supports || [],
+					group: collection.group,
 					hasSeo: collection.hasSeo,
 					urlPattern: collection.urlPattern,
 					fields,

@@ -214,6 +214,7 @@ export interface CollectionTable {
 	icon: string | null;
 	supports: string | null; // JSON array
 	source: string | null;
+	group_name: string | null; // Optional sidebar group label for the admin content sidebar
 	search_config: string | null; // JSON: { enabled: boolean, weights: Record<string, number> }
 	has_seo: number; // 0 or 1 — opt-in SEO fields for this collection
 	url_pattern: string | null; // URL pattern with {slug} placeholder (e.g. "/blog/{slug}")

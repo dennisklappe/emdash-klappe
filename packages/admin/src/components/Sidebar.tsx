@@ -81,9 +81,43 @@ export function filterNavItemsByRole<T extends { minRole?: number }>(
 	return items.filter((item) => !item.minRole || userRole >= item.minRole);
 }
 
+/**
+ * Split collection nav items into ungrouped items and named groups.
+ *
+ * Items with no `group` stay ungrouped and render inline as before. Items
+ * sharing a `group` value are collected under that group, which the sidebar
+ * renders as a collapsible header. Group order follows first appearance in
+ * `items` (which mirrors the manifest's collection order), and item order
+ * within each group is preserved. Pure and exported so a unit test can verify
+ * the partitioning without mounting the sidebar.
+ */
+export function groupCollectionItems<T extends { group?: string }>(
+	items: T[],
+): { ungrouped: T[]; groups: Array<{ name: string; items: T[] }> } {
+	const ungrouped: T[] = [];
+	const groups: Array<{ name: string; items: T[] }> = [];
+	const groupByName = new Map<string, { name: string; items: T[] }>();
+
+	for (const item of items) {
+		if (!item.group) {
+			ungrouped.push(item);
+			continue;
+		}
+		let group = groupByName.get(item.group);
+		if (!group) {
+			group = { name: item.group, items: [] };
+			groupByName.set(item.group, group);
+			groups.push(group);
+		}
+		group.items.push(item);
+	}
+
+	return { ungrouped, groups };
+}
+
 export interface SidebarNavProps {
 	manifest: {
-		collections: Record<string, { label: string }>;
+		collections: Record<string, { label: string; group?: string }>;
 		plugins: Record<
 			string,
 			{
@@ -126,6 +160,8 @@ interface NavItem {
 	minRole?: number;
 	/** Optional badge count (e.g., pending comments) */
 	badge?: number;
+	/** Optional sidebar group (collection items only) — see Collection.group. */
+	group?: string;
 }
 
 /**
@@ -337,6 +373,9 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			label: config.label,
 			icon: FileText,
 			params: { collection: name },
+			// Optional sidebar group. Collections sharing a `group` value are
+			// rendered together under a collapsible header further below.
+			group: config.group,
 		});
 	}
 	contentItems.push({ to: "/media", label: t`Media`, icon: Image });
@@ -433,6 +472,42 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			const active = isItemActive(itemPath, currentPath);
 			return <NavMenuLink key={`${item.to}-${index}`} item={item} isActive={active} />;
 		});
+	}
+
+	// Split collection items into ungrouped (rendered inline, as before) and
+	// named groups (rendered under collapsible headers). Media and any other
+	// non-collection content items have no `group`, so they stay ungrouped.
+	const { ungrouped: ungroupedContent, groups: contentGroups } = groupCollectionItems(
+		visibleContent.filter((i) => i.to !== "/"),
+	);
+
+	/**
+	 * Render one collection group as a collapsible header with its collection
+	 * links nested inside. Opens by default when collapsed-by-default would hide
+	 * the active collection, so navigating into a grouped collection keeps it
+	 * visible.
+	 */
+	function renderCollectionGroup(group: { name: string; items: NavItem[] }) {
+		const hasActiveChild = group.items.some((item) =>
+			isItemActive(resolveItemPath(item), currentPath),
+		);
+		return (
+			<KumoSidebar.MenuItem key={`group-${group.name}`}>
+				<KumoSidebar.Collapsible defaultOpen={hasActiveChild}>
+					<KumoSidebar.CollapsibleTrigger
+						render={
+							<KumoSidebar.MenuButton icon={Folder}>
+								{group.name}
+								<KumoSidebar.MenuChevron />
+							</KumoSidebar.MenuButton>
+						}
+					/>
+					<KumoSidebar.CollapsibleContent>
+						<KumoSidebar.MenuSub>{renderNavItems(group.items)}</KumoSidebar.MenuSub>
+					</KumoSidebar.CollapsibleContent>
+				</KumoSidebar.Collapsible>
+			</KumoSidebar.MenuItem>
+		);
 	}
 
 	return (
@@ -576,7 +651,12 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 						<KumoSidebar.Group>
 							<KumoSidebar.GroupLabel className="[&>span]:text-start [&_svg]:rtl:-scale-x-100 [&_svg]:rtl:-scale-y-100">{t`Content`}</KumoSidebar.GroupLabel>
 							<KumoSidebar.Menu>
-								{renderNavItems(visibleContent.filter((i) => i.to !== "/"))}
+								{/* Ungrouped collections (and Media) render inline; grouped
+								    collections render under collapsible folder headers. Media
+								    is pinned last so the folders sit with the collections. */}
+								{renderNavItems(ungroupedContent.filter((i) => i.to !== "/media"))}
+								{contentGroups.map(renderCollectionGroup)}
+								{renderNavItems(ungroupedContent.filter((i) => i.to === "/media"))}
 							</KumoSidebar.Menu>
 						</KumoSidebar.Group>
 					)}

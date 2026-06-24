@@ -27,6 +27,12 @@ export interface ManifestCollection {
 	label: string;
 	labelSingular: string;
 	supports: string[];
+	/**
+	 * Optional sidebar group. Collections sharing a `group` value are rendered
+	 * together under a collapsible header in the admin content sidebar.
+	 * Undefined for ungrouped collections.
+	 */
+	group?: string;
 	hasSeo: boolean;
 	urlPattern?: string;
 	fields: Record<

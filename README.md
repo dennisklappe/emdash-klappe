@@ -1,3 +1,17 @@
+# emdash-klappe
+
+A personal fork of [emdash](https://github.com/emdash-cms/emdash) (MIT licensed). The internal package names (`emdash`, `@emdash-cms/*`) are kept unchanged so updates from upstream stay easy to merge. This fork only adds a handful of features on top.
+
+## Features added on top of emdash
+
+- **Collection folders / groups.** Collections can declare an optional `group` (for example `group: "Pages"`). Collections that share a group are rendered together under a collapsible folder header in the admin content sidebar; collections without a group render ungrouped, as before.
+- **Locked collections.** A collection whose `supports` array includes `"locked"` can be edited but not created or deleted. This fits fixed collections that map one to one to hardcoded routes (a "Pages" or "Site sections" collection). The admin hides the "Add New" and delete controls, and the create / delete API handlers return 403.
+- **Star-rating widget.** A built-in `stars` widget for integer and number fields. Set a field's `widget` to `"stars"` to edit it as clickable stars instead of a number input, with `options.max` controlling how many stars show (default 5). The stored value stays a plain integer.
+
+Everything else is unchanged from upstream emdash. The original project documentation follows.
+
+---
+
 # EmDash
 
 A full-stack TypeScript CMS built on [Astro](https://astro.build/) and [Cloudflare](https://www.cloudflare.com/). EmDash takes the ideas that made WordPress dominant -- extensibility, admin UX, a plugin ecosystem -- and rebuilds them on serverless, type-safe foundations. Plugins run in sandboxed Worker isolates, solving the fundamental security problem with WordPress's plugin architecture.

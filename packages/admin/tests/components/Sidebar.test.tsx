@@ -30,6 +30,7 @@ import { describe, it, expect } from "vitest";
 import {
 	BYLINE_SCHEMA_NAV_ITEM,
 	filterNavItemsByRole,
+	groupCollectionItems,
 	resolveNavIcon,
 	toPhosphorIconName,
 } from "../../src/components/Sidebar";
@@ -151,5 +152,39 @@ describe("resolveNavIcon", () => {
 		const resolved = screen.getByTestId("resolved");
 		await expect.element(resolved).toBeInTheDocument();
 		expect(resolved.element().innerHTML).toBe(screen.getByTestId("expected").element().innerHTML);
+	});
+});
+
+describe("groupCollectionItems", () => {
+	it("keeps items without a group ungrouped", () => {
+		const items = [{ to: "/content/$collection", label: "Posts" }];
+		const { ungrouped, groups } = groupCollectionItems(items);
+		expect(ungrouped).toHaveLength(1);
+		expect(groups).toHaveLength(0);
+	});
+
+	it("collects items that share a group under one named group", () => {
+		const items = [
+			{ to: "/content/$collection", label: "Home", group: "Pages" },
+			{ to: "/content/$collection", label: "About", group: "Pages" },
+			{ to: "/content/$collection", label: "Posts" },
+		];
+		const { ungrouped, groups } = groupCollectionItems(items);
+		expect(ungrouped.map((i) => i.label)).toEqual(["Posts"]);
+		expect(groups).toHaveLength(1);
+		expect(groups[0]).toMatchObject({ name: "Pages" });
+		expect(groups[0].items.map((i) => i.label)).toEqual(["Home", "About"]);
+	});
+
+	it("preserves group order by first appearance", () => {
+		const items = [
+			{ to: "/content/$collection", label: "A", group: "Marketing" },
+			{ to: "/content/$collection", label: "B", group: "Pages" },
+			{ to: "/content/$collection", label: "C", group: "Marketing" },
+		];
+		const { groups } = groupCollectionItems(items);
+		expect(groups.map((g) => g.name)).toEqual(["Marketing", "Pages"]);
+		expect(groups[0].items.map((i) => i.label)).toEqual(["A", "C"]);
+		expect(groups[1].items.map((i) => i.label)).toEqual(["B"]);
 	});
 });

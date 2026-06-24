@@ -77,6 +77,33 @@ describe("SchemaRegistry", () => {
 			expect(reloaded?.supports).toContain("locked");
 		});
 
+		it("round-trips an optional sidebar group", async () => {
+			const created = await registry.createCollection({
+				slug: "home_page",
+				label: "Home",
+				group: "Pages",
+			});
+			expect(created.group).toBe("Pages");
+
+			const reloaded = await registry.getCollection("home_page");
+			expect(reloaded?.group).toBe("Pages");
+		});
+
+		it("leaves group undefined when not provided", async () => {
+			const created = await registry.createCollection({ slug: "posts", label: "Posts" });
+			expect(created.group).toBeUndefined();
+		});
+
+		it("updates and clears a collection's group", async () => {
+			await registry.createCollection({ slug: "team", label: "Team", group: "About" });
+
+			const updated = await registry.updateCollection("team", { group: "People" });
+			expect(updated.group).toBe("People");
+
+			const cleared = await registry.updateCollection("team", { group: null });
+			expect(cleared.group).toBeUndefined();
+		});
+
 		it("should create the content table when creating a collection", async () => {
 			await registry.createCollection({
 				slug: "articles",

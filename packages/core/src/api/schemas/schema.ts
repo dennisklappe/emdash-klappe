@@ -84,6 +84,7 @@ export const createCollectionBody = z
 		icon: z.string().optional(),
 		supports: z.array(collectionSupportValues).optional(),
 		source: z.string().regex(collectionSourcePattern).optional(),
+		group: z.string().min(1).optional(),
 		urlPattern: z.string().optional(),
 		hasSeo: z.boolean().optional(),
 	})
@@ -96,6 +97,7 @@ export const updateCollectionBody = z
 		description: z.string().optional(),
 		icon: z.string().optional(),
 		supports: z.array(collectionSupportValues).optional(),
+		group: z.string().min(1).nullish(),
 		urlPattern: z.string().nullish(),
 		hasSeo: z.boolean().optional(),
 		commentsEnabled: z.boolean().optional(),
@@ -176,6 +178,7 @@ export const collectionSchema = z
 		icon: z.string().nullable(),
 		supports: z.array(z.string()),
 		source: z.string().nullable(),
+		group: z.string().nullable(),
 		urlPattern: z.string().nullable(),
 		hasSeo: z.boolean(),
 		createdAt: z.string(),
