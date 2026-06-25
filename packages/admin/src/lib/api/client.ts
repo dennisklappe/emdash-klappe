@@ -184,6 +184,11 @@ export interface AdminManifest {
 		logo?: string;
 		siteName?: string;
 		favicon?: string;
+		/**
+		 * Manage-sidebar nav entries to hide (route slugs, e.g. "comments",
+		 * "widgets"). Set via `admin.hiddenSections` in `astro.config.mjs`.
+		 */
+		hiddenSections?: string[];
 	};
 }
 

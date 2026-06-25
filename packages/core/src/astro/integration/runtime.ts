@@ -579,6 +579,7 @@ export interface EmDashConfig {
 	 *     logo: "/images/agency-logo.webp",
 	 *     siteName: "AgencyX CMS",
 	 *     favicon: "/favicon.ico",
+	 *     hiddenSections: ["comments", "widgets"],
 	 *   },
 	 * })
 	 * ```
@@ -590,6 +591,15 @@ export interface EmDashConfig {
 		siteName?: string;
 		/** URL or path to a custom favicon for the admin panel. */
 		favicon?: string;
+		/**
+		 * Manage-sidebar nav entries to hide for sites that don't use a given
+		 * feature. Each value is a nav entry's route slug (the part after the
+		 * leading slash, e.g. "comments" for /comments, "widgets" for /widgets).
+		 * Hidden entries are dropped from the sidebar (their routes still exist).
+		 *
+		 * @example hiddenSections: ["comments", "widgets"]
+		 */
+		hiddenSections?: string[];
 	};
 
 	/**

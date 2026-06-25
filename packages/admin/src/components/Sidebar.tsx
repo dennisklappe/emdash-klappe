@@ -82,6 +82,26 @@ export function filterNavItemsByRole<T extends { minRole?: number }>(
 }
 
 /**
+ * Drop nav items whose route slug is listed in `hiddenSections`.
+ *
+ * The slug is the route path without its leading slash (e.g. "comments" for
+ * "/comments", "widgets" for "/widgets"). Sites that don't use a feature can
+ * hide its sidebar entry via the `admin.hiddenSections` config without
+ * affecting the underlying routes. Pure and exported so a unit test can verify
+ * the filtering without mounting the sidebar.
+ */
+export function filterHiddenSections<T extends { to: string }>(
+	items: T[],
+	hiddenSections?: string[],
+): T[] {
+	if (!hiddenSections || hiddenSections.length === 0) {
+		return items;
+	}
+	const hidden = new Set(hiddenSections);
+	return items.filter((item) => !hidden.has(item.to.replace(/^\//, "")));
+}
+
+/**
  * Split collection nav items into ungrouped items and named groups.
  *
  * Items with no `group` stay ungrouped and render inline as before. Items
@@ -147,6 +167,12 @@ export interface SidebarNavProps {
 			logo?: string;
 			siteName?: string;
 			favicon?: string;
+			/**
+			 * Manage-sidebar nav entries to hide (route slugs, e.g. "comments",
+			 * "widgets"). Set via `admin.hiddenSections` in `astro.config.mjs`
+			 * for sites that don't use a given feature.
+			 */
+			hiddenSections?: string[];
 		};
 	};
 }
@@ -461,10 +487,25 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		}
 	}
 
-	const visibleContent = filterNavItemsByRole(contentItems, userRole);
-	const visibleManage = filterNavItemsByRole(manageItems, userRole);
-	const visibleAdmin = filterNavItemsByRole(adminItems, userRole);
-	const visiblePlugins = filterNavItemsByRole(pluginItems, userRole);
+	// Sites that don't use a feature (e.g. comments, widgets) can hide its
+	// sidebar entry via `admin.hiddenSections` without disabling the route.
+	const hiddenSections = manifest.admin?.hiddenSections;
+	const visibleContent = filterNavItemsByRole(
+		filterHiddenSections(contentItems, hiddenSections),
+		userRole,
+	);
+	const visibleManage = filterNavItemsByRole(
+		filterHiddenSections(manageItems, hiddenSections),
+		userRole,
+	);
+	const visibleAdmin = filterNavItemsByRole(
+		filterHiddenSections(adminItems, hiddenSections),
+		userRole,
+	);
+	const visiblePlugins = filterNavItemsByRole(
+		filterHiddenSections(pluginItems, hiddenSections),
+		userRole,
+	);
 
 	function renderNavItems(items: NavItem[]) {
 		return items.map((item, index) => {
