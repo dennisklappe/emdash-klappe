@@ -221,7 +221,10 @@ export async function getAccessIdentity(jwt: string, teamDomain: string): Promis
 export function resolveRoleFromGroups(groups: AccessGroup[], config: AccessConfig): number {
 	const defaultRole = config.defaultRole ?? 30; // Editor
 
-	if (!config.roleMapping) {
+	// Access identities without IdP group claims (e.g. email OTP) return no
+	// `groups` array. Guard against that so the for-of below cannot throw
+	// "groups is not iterable" (which surfaced as a 401 on every login).
+	if (!config.roleMapping || !Array.isArray(groups)) {
 		return defaultRole;
 	}
 
