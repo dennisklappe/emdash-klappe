@@ -504,6 +504,11 @@ export function ContentEditor({
 	const [isLoadingPreview, setIsLoadingPreview] = React.useState(false);
 
 	const urlPattern = manifest?.collections[collection]?.urlPattern;
+	// Only expose Live View / preview when the collection has a real urlPattern.
+	// Without one, contentUrl() falls back to `/{collection}/{slug}`, which is
+	// wrong for collections whose entries have varied, hand-authored URLs and
+	// produces broken 404 links.
+	const hasUrlPattern = Boolean(urlPattern);
 
 	const handlePreview = async () => {
 		if (!item?.id) return;
@@ -677,7 +682,7 @@ export function ContentEditor({
 							<ArrowsOutSimple className="h-4 w-4" aria-hidden="true" />
 						</Button>
 					)}
-					{!isNew && supportsPreview && (
+					{!isNew && supportsPreview && hasUrlPattern && (
 						<Button
 							variant="outline"
 							type="button"
@@ -743,7 +748,7 @@ export function ContentEditor({
 									{t`Publish`}
 								</Button>
 							)}
-							{isLive && item?.slug && (
+							{isLive && item?.slug && hasUrlPattern && (
 								<LinkButton
 									href={contentUrl(collection, item.slug, urlPattern)}
 									external
