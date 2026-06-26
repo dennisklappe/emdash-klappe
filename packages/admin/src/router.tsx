@@ -470,6 +470,10 @@ function ContentListPage() {
 		}
 	}, [singletonEntryId, collection, navigate]);
 
+	// Hoisted above the early returns: this must run on every render so the hook
+	// count stays stable (the singleton/loading guards below return early).
+	const handleLoadMore = React.useCallback(() => void fetchNextPage(), [fetchNextPage]);
+
 	if (!manifest) {
 		return <LoadingScreen />;
 	}
@@ -508,7 +512,7 @@ function ContentListPage() {
 			isLoading={isLoading || isFetchingNextPage}
 			isTrashedLoading={isTrashedLoading}
 			hasMore={!!hasNextPage}
-			onLoadMore={React.useCallback(() => void fetchNextPage(), [fetchNextPage])}
+			onLoadMore={handleLoadMore}
 			trashedCount={trashedData?.items?.length || 0}
 			onDelete={(id) => deleteMutation.mutate(id)}
 			onRestore={(id) => restoreMutation.mutate(id)}
