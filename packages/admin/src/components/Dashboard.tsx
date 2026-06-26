@@ -65,7 +65,13 @@ export function Dashboard({ manifest }: DashboardProps) {
 
 function QuickActions({ manifest }: { manifest: AdminManifest }) {
 	const { t } = useLingui();
-	const collections = Object.entries(manifest.collections);
+	// Quick-create only for collections you can actually add entries to. Singleton
+	// and locked collections (a homepage, fixed pages, site sections) can't get new
+	// entries, so showing a "+ Create" for them is misleading — drop them.
+	const collections = Object.entries(manifest.collections).filter(
+		([, config]) =>
+			!config.supports.includes("locked") && !config.supports.includes("singleton"),
+	);
 
 	return (
 		<div className="flex flex-wrap gap-2">
