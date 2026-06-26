@@ -6,9 +6,17 @@ A personal fork of [emdash](https://github.com/emdash-cms/emdash) (MIT licensed)
 
 - **Collection folders / groups.** Collections can declare an optional `group` (for example `group: "Pages"`). Collections that share a group are rendered together under a collapsible folder header in the admin content sidebar; collections without a group render ungrouped, as before.
 - **Locked collections.** A collection whose `supports` array includes `"locked"` can be edited but not created or deleted. This fits fixed collections that map one to one to hardcoded routes (a "Pages" or "Site sections" collection). The admin hides the "Add New" and delete controls, and the create / delete API handlers return 403.
-- **Star-rating widget.** A built-in `stars` widget for integer and number fields. Set a field's `widget` to `"stars"` to edit it as clickable stars instead of a number input, with `options.max` controlling how many stars show (default 5). The stored value stays a plain integer.
 
 Everything else is unchanged from upstream emdash. The original project documentation follows.
+
+## Plugins I built for emdash
+
+These live in their own repositories and install as regular emdash plugins, so they stay decoupled from this fork. Anything that fits the plugin API lives here rather than as a fork patch.
+
+- **[emdash-plugin-stars](https://github.com/dennisklappe/emdash-plugin-stars).** Edit an integer field as clickable stars instead of a number input. `options.max` sets how many stars show (default 5); the stored value stays a plain integer.
+- **[emdash-plugin-blocks](https://github.com/dennisklappe/emdash-plugin-blocks).** Edit key/value copy as clean, labeled text fields without exposing the technical lookup keys the templates rely on.
+- **[emdash-plugin-emailit](https://github.com/dennisklappe/emdash-plugin-emailit).** Send emdash's transactional email (magic links, invites, password resets) through Emailit.
+- **[emdash-plugin-github-backup](https://github.com/dennisklappe/emdash-plugin-github-backup).** Back up CMS content to a GitHub repository folder on every edit, for file-based backups and a full git change history.
 
 ---
 
