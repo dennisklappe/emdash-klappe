@@ -4,7 +4,7 @@ A personal fork of [emdash](https://github.com/emdash-cms/emdash) (MIT licensed)
 
 ## Features added on top of emdash
 
-- **Collection folders / groups (with subfolders).** Collections can declare an optional `group` (for example `group: "Pages"`). Collections that share a group are rendered together under a collapsible folder header in the admin content sidebar; collections without a group render ungrouped, as before. The `group` value is a slash-delimited path, so folders can nest: `group: "Pagina's/Vacatures"` puts a "Vacatures" subfolder inside "Pagina's".
+- **Collection folders / groups (with subfolders).** Collections can declare an optional `group` (for example `group: "Pages"`). Collections that share a group are rendered together under a collapsible folder header in the admin content sidebar; collections without a group render ungrouped, as before. The `group` value is a slash-delimited path, so folders can nest: `group: "Pages/Legal"` puts a "Legal" subfolder inside "Pages".
 - **Locked collections.** A collection whose `supports` array includes `"locked"` can be edited but not created or deleted. This fits fixed collections that map one to one to hardcoded routes (a "Pages" or "Site sections" collection). The admin hides the "Add New" and delete controls, and the create / delete API handlers return 403.
 - **Singleton collections.** A collection whose `supports` array includes `"singleton"` holds exactly one entry. Its sidebar item links straight to that entry's editor (no list step) and the content-list route redirects to it, so a one-of-a-kind page (a homepage, an "over ons" page) is edited in a single click. Implies `"locked"` (the single entry can be edited but not created or deleted).
 
@@ -14,22 +14,21 @@ one-of-a-kind page opens its editor directly:
 
 ```
 Blogs
-Cases
-Pagina's/                        group: "Pagina's"
-├─ Vacatures/                    group: "Pagina's/Vacatures"
-│  ├─ SEA-specialist             (singleton → opens editor)
-│  └─ Recruitment-marketeer      (singleton)
-├─ Diensten/                     group: "Pagina's/Diensten"
-│  └─ Interim                    (singleton)
-├─ Regio                         (normal collection: list of entries)
-├─ Homepage                      (singleton → opens editor)
-└─ Over ons                      (singleton → opens editor)
-Reviews & partners/              group: "Reviews & partners"
-├─ Reviews
+Pages/                           group: "Pages"
+├─ Landing pages/                group: "Pages/Landing pages"
+│  ├─ Home                       (singleton → opens editor)
+│  └─ Pricing                    (singleton)
+├─ Legal/                        group: "Pages/Legal"
+│  ├─ Privacy policy             (singleton)
+│  └─ Terms                      (singleton)
+├─ Locations                     (normal collection: list of entries)
+└─ About                         (singleton → opens editor)
+Marketing/                       group: "Marketing"
+├─ Testimonials
 └─ Partners
 ```
 
-A folder with one slash segment (`"Pagina's"`) is a top-level folder; each extra
+A folder with one slash segment (`"Pages"`) is a top-level folder; each extra
 segment nests one level deeper. Items without a `group` stay ungrouped and render
 inline, as before.
 
