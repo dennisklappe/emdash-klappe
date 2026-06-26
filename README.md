@@ -8,6 +8,31 @@ A personal fork of [emdash](https://github.com/emdash-cms/emdash) (MIT licensed)
 - **Locked collections.** A collection whose `supports` array includes `"locked"` can be edited but not created or deleted. This fits fixed collections that map one to one to hardcoded routes (a "Pages" or "Site sections" collection). The admin hides the "Add New" and delete controls, and the create / delete API handlers return 403.
 - **Singleton collections.** A collection whose `supports` array includes `"singleton"` holds exactly one entry. Its sidebar item links straight to that entry's editor (no list step) and the content-list route redirects to it, so a one-of-a-kind page (a homepage, an "over ons" page) is edited in a single click. Implies `"locked"` (the single entry can be edited but not created or deleted).
 
+Together these let the admin content sidebar read like a real site map. With
+`group` paths and `singleton`, collections render as nested folders where each
+one-of-a-kind page opens its editor directly:
+
+```
+Blogs
+Cases
+Pagina's/                        group: "Pagina's"
+├─ Vacatures/                    group: "Pagina's/Vacatures"
+│  ├─ SEA-specialist             (singleton → opens editor)
+│  └─ Recruitment-marketeer      (singleton)
+├─ Diensten/                     group: "Pagina's/Diensten"
+│  └─ Interim                    (singleton)
+├─ Regio                         (normal collection: list of entries)
+├─ Homepage                      (singleton → opens editor)
+└─ Over ons                      (singleton → opens editor)
+Reviews & partners/              group: "Reviews & partners"
+├─ Reviews
+└─ Partners
+```
+
+A folder with one slash segment (`"Pagina's"`) is a top-level folder; each extra
+segment nests one level deeper. Items without a `group` stay ungrouped and render
+inline, as before.
+
 Everything else is unchanged from upstream emdash. The original project documentation follows.
 
 ## Plugins I built for emdash
