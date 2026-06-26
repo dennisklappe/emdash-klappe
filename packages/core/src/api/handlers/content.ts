@@ -84,9 +84,10 @@ async function collectionHasSeo(db: Kysely<Database>, collection: string): Promi
 
 /**
  * Check if a collection is locked. Locked collections allow editing existing
- * entries but reject creation and deletion (the "locked" support flag). The
- * `supports` column is a JSON array; a missing or malformed value is treated
- * as "not locked" so a parse problem never blocks normal writes.
+ * entries but reject creation and deletion (the "locked" support flag, also
+ * implied by "singleton"). The `supports` column is a JSON array; a missing or
+ * malformed value is treated as "not locked" so a parse problem never blocks
+ * normal writes.
  */
 async function collectionIsLocked(db: Kysely<Database>, collection: string): Promise<boolean> {
 	const row = await db
@@ -97,7 +98,9 @@ async function collectionIsLocked(db: Kysely<Database>, collection: string): Pro
 	if (!row?.supports) return false;
 	try {
 		const parsed: unknown = JSON.parse(row.supports);
-		return Array.isArray(parsed) && parsed.includes("locked");
+		// "singleton" implies "locked": the one entry can be edited but never
+		// created or deleted.
+		return Array.isArray(parsed) && (parsed.includes("locked") || parsed.includes("singleton"));
 	} catch {
 		return false;
 	}

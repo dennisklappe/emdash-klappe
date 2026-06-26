@@ -4,8 +4,9 @@ A personal fork of [emdash](https://github.com/emdash-cms/emdash) (MIT licensed)
 
 ## Features added on top of emdash
 
-- **Collection folders / groups.** Collections can declare an optional `group` (for example `group: "Pages"`). Collections that share a group are rendered together under a collapsible folder header in the admin content sidebar; collections without a group render ungrouped, as before.
+- **Collection folders / groups (with subfolders).** Collections can declare an optional `group` (for example `group: "Pages"`). Collections that share a group are rendered together under a collapsible folder header in the admin content sidebar; collections without a group render ungrouped, as before. The `group` value is a slash-delimited path, so folders can nest: `group: "Pagina's/Vacatures"` puts a "Vacatures" subfolder inside "Pagina's".
 - **Locked collections.** A collection whose `supports` array includes `"locked"` can be edited but not created or deleted. This fits fixed collections that map one to one to hardcoded routes (a "Pages" or "Site sections" collection). The admin hides the "Add New" and delete controls, and the create / delete API handlers return 403.
+- **Singleton collections.** A collection whose `supports` array includes `"singleton"` holds exactly one entry. Its sidebar item links straight to that entry's editor (no list step) and the content-list route redirects to it, so a one-of-a-kind page (a homepage, an "over ons" page) is edited in a single click. Implies `"locked"` (the single entry can be edited but not created or deleted).
 
 Everything else is unchanged from upstream emdash. The original project documentation follows.
 

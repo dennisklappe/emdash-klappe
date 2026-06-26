@@ -101,38 +101,63 @@ export function filterHiddenSections<T extends { to: string }>(
 	return items.filter((item) => !hidden.has(item.to.replace(/^\//, "")));
 }
 
+/** A folder node in the sidebar's collection tree. Folders can nest. */
+export interface CollectionGroupNode<T> {
+	/** This folder's own segment label (e.g. "Vacatures"). */
+	name: string;
+	/** Full slash path from the root (e.g. "Pagina's/Vacatures"), for stable keys. */
+	path: string;
+	/** Collection items that live directly in this folder. */
+	items: T[];
+	/** Nested subfolders. */
+	subgroups: Array<CollectionGroupNode<T>>;
+}
+
 /**
- * Split collection nav items into ungrouped items and named groups.
+ * Split collection nav items into ungrouped items and a tree of named folders.
  *
- * Items with no `group` stay ungrouped and render inline as before. Items
- * sharing a `group` value are collected under that group, which the sidebar
- * renders as a collapsible header. Group order follows first appearance in
- * `items` (which mirrors the manifest's collection order), and item order
- * within each group is preserved. Pure and exported so a unit test can verify
- * the partitioning without mounting the sidebar.
+ * Items with no `group` stay ungrouped and render inline as before. A `group`
+ * value is a slash-delimited path: `"Pagina's"` is one folder, `"Pagina's/Vacatures"`
+ * nests a "Vacatures" folder inside "Pagina's". Items sharing a path collect
+ * under that folder; folder order follows first appearance in `items` (which
+ * mirrors the manifest's collection order), and item order within each folder is
+ * preserved. Pure and exported so a unit test can verify the partitioning
+ * without mounting the sidebar.
  */
 export function groupCollectionItems<T extends { group?: string }>(
 	items: T[],
-): { ungrouped: T[]; groups: Array<{ name: string; items: T[] }> } {
+): { ungrouped: T[]; groups: Array<CollectionGroupNode<T>> } {
 	const ungrouped: T[] = [];
-	const groups: Array<{ name: string; items: T[] }> = [];
-	const groupByName = new Map<string, { name: string; items: T[] }>();
+	const roots: Array<CollectionGroupNode<T>> = [];
+	const nodeByPath = new Map<string, CollectionGroupNode<T>>();
 
 	for (const item of items) {
-		if (!item.group) {
+		const segments = (item.group ?? "")
+			.split("/")
+			.map((s) => s.trim())
+			.filter(Boolean);
+		if (segments.length === 0) {
 			ungrouped.push(item);
 			continue;
 		}
-		let group = groupByName.get(item.group);
-		if (!group) {
-			group = { name: item.group, items: [] };
-			groupByName.set(item.group, group);
-			groups.push(group);
+		let parentList = roots;
+		let pathAcc = "";
+		let node: CollectionGroupNode<T> | undefined;
+		for (const segment of segments) {
+			pathAcc = pathAcc ? `${pathAcc}/${segment}` : segment;
+			node = nodeByPath.get(pathAcc);
+			if (!node) {
+				node = { name: segment, path: pathAcc, items: [], subgroups: [] };
+				nodeByPath.set(pathAcc, node);
+				parentList.push(node);
+			}
+			parentList = node.subgroups;
 		}
-		group.items.push(item);
+		// `node` is defined because segments is non-empty.
+		node?.items.push(item);
 	}
 
-	return { ungrouped, groups };
+	return { ungrouped, groups: roots };
 }
 
 export interface SidebarNavProps {
@@ -522,19 +547,25 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		visibleContent.filter((i) => i.to !== "/"),
 	);
 
-	/**
-	 * Render one collection group as a collapsible header with its collection
-	 * links nested inside. Opens by default when collapsed-by-default would hide
-	 * the active collection, so navigating into a grouped collection keeps it
-	 * visible.
-	 */
-	function renderCollectionGroup(group: { name: string; items: NavItem[] }) {
-		const hasActiveChild = group.items.some((item) =>
-			isItemActive(resolveItemPath(item), currentPath),
-		);
+	/** True when this folder or any nested subfolder holds the active route. */
+	function groupHasActiveChild(group: CollectionGroupNode<NavItem>): boolean {
 		return (
-			<KumoSidebar.MenuItem key={`group-${group.name}`}>
-				<KumoSidebar.Collapsible defaultOpen={hasActiveChild}>
+			group.items.some((item) => isItemActive(resolveItemPath(item), currentPath)) ||
+			group.subgroups.some(groupHasActiveChild)
+		);
+	}
+
+	/**
+	 * Render one collection folder as a collapsible header with its subfolders
+	 * and collection links nested inside. Subfolders render first, then the
+	 * folder's own (ungrouped-within-it) collections. Opens by default when it
+	 * (or a nested subfolder) contains the active route, so navigating into a
+	 * grouped collection keeps it visible.
+	 */
+	function renderCollectionGroup(group: CollectionGroupNode<NavItem>) {
+		return (
+			<KumoSidebar.MenuItem key={`group-${group.path}`}>
+				<KumoSidebar.Collapsible defaultOpen={groupHasActiveChild(group)}>
 					<KumoSidebar.CollapsibleTrigger
 						render={
 							<KumoSidebar.MenuButton icon={Folder}>
@@ -544,7 +575,10 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 						}
 					/>
 					<KumoSidebar.CollapsibleContent>
-						<KumoSidebar.MenuSub>{renderNavItems(group.items)}</KumoSidebar.MenuSub>
+						<KumoSidebar.MenuSub>
+							{group.subgroups.map(renderCollectionGroup)}
+							{renderNavItems(group.items)}
+						</KumoSidebar.MenuSub>
 					</KumoSidebar.CollapsibleContent>
 				</KumoSidebar.Collapsible>
 			</KumoSidebar.MenuItem>

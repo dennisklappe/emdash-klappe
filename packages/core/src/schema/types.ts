@@ -90,7 +90,13 @@ export type CollectionSupport =
 	// "Pages" or "Site sections" collection) where editors should change
 	// existing entries but never add or remove them. The admin hides the create
 	// and delete controls, and the create/delete handlers return 403.
-	| "locked";
+	| "locked"
+	// "singleton": the collection holds exactly one entry. The admin sidebar
+	// links straight to that entry's editor (no list step) and the content-list
+	// route redirects to it. Implies "locked" (the single entry can be edited
+	// but not created or deleted). Useful for one-of-a-kind pages (a homepage,
+	// an "over ons" page) that should be edited directly.
+	| "singleton";
 
 /**
  * Sources for how a collection was created

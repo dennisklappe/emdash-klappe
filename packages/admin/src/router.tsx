@@ -454,6 +454,22 @@ function ContentListPage() {
 	// loaded count so old servers (pre-total) still render a denominator.
 	const total = data?.pages[0]?.total ?? items.length;
 
+	// Singleton collections (fork): exactly one entry, and the sidebar links
+	// here. Redirect straight to that entry's editor so editing is a single
+	// click. Declared before the early returns to keep hook order stable.
+	const singletonEntryId = manifest?.collections[collection]?.supports.includes("singleton")
+		? items[0]?.id
+		: undefined;
+	React.useEffect(() => {
+		if (singletonEntryId) {
+			void navigate({
+				to: "/content/$collection/$id",
+				params: { collection, id: singletonEntryId },
+				replace: true,
+			});
+		}
+	}, [singletonEntryId, collection, navigate]);
+
 	if (!manifest) {
 		return <LoadingScreen />;
 	}
@@ -466,6 +482,12 @@ function ContentListPage() {
 
 	if (error) {
 		return <ErrorScreen error={error.message} />;
+	}
+
+	// While the singleton redirect resolves (entry loading, or about to
+	// navigate), show the loader instead of flashing the full list.
+	if (collectionConfig.supports.includes("singleton") && (isLoading || items.length > 0)) {
+		return <LoadingScreen />;
 	}
 
 	const handleLocaleChange = (locale: string) => {
@@ -507,7 +529,7 @@ function ContentListPage() {
 			onAuthorFilterChange={setAuthorFilter}
 			dateFilter={dateFilter}
 			onDateFilterChange={setDateFilter}
-			locked={collectionConfig.supports.includes("locked")}
+			locked={(collectionConfig.supports.includes("locked") || collectionConfig.supports.includes("singleton"))}
 		/>
 	);
 }
@@ -603,7 +625,7 @@ function ContentNewPage() {
 	// Locked collections do not accept new entries, so a directly-typed
 	// /content/{collection}/new URL must not present a usable create form.
 	// The server rejects the create call regardless; this keeps the UI honest.
-	if (collectionConfig.supports.includes("locked")) {
+	if ((collectionConfig.supports.includes("locked") || collectionConfig.supports.includes("singleton"))) {
 		return (
 			<NotFoundPage message={`Collection "${collectionConfig.label}" does not accept new entries`} />
 		);
@@ -1071,7 +1093,7 @@ function ContentEditPage() {
 			supportsDrafts={collectionConfig.supports.includes("drafts")}
 			supportsRevisions={collectionConfig.supports.includes("revisions")}
 			supportsPreview={collectionConfig.supports.includes("preview")}
-			locked={collectionConfig.supports.includes("locked")}
+			locked={(collectionConfig.supports.includes("locked") || collectionConfig.supports.includes("singleton"))}
 			currentUser={currentUser}
 			users={usersData?.items}
 			onAuthorChange={handleAuthorChange}

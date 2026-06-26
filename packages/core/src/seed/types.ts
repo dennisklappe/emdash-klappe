@@ -72,7 +72,16 @@ export interface SeedCollection {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
-	supports?: ("drafts" | "revisions" | "preview" | "scheduling" | "search" | "seo" | "locked")[];
+	supports?: (
+		| "drafts"
+		| "revisions"
+		| "preview"
+		| "scheduling"
+		| "search"
+		| "seo"
+		| "locked"
+		| "singleton"
+	)[];
 	/**
 	 * Optional sidebar group label. Collections that share a `group` value are
 	 * grouped under a collapsible header in the admin content sidebar.

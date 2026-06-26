@@ -187,4 +187,21 @@ describe("groupCollectionItems", () => {
 		expect(groups[0].items.map((i) => i.label)).toEqual(["A", "C"]);
 		expect(groups[1].items.map((i) => i.label)).toEqual(["B"]);
 	});
+
+	it("nests subfolders from a slash-delimited group path", () => {
+		const items = [
+			{ to: "/content/$collection", label: "Vac1", group: "Pagina's/Vacatures" },
+			{ to: "/content/$collection", label: "Dienst1", group: "Pagina's/Diensten" },
+			{ to: "/content/$collection", label: "Los", group: "Pagina's" },
+		];
+		const { groups } = groupCollectionItems(items);
+		// One root folder "Pagina's" with two subfolders and one direct item.
+		expect(groups).toHaveLength(1);
+		expect(groups[0]).toMatchObject({ name: "Pagina's", path: "Pagina's" });
+		expect(groups[0].items.map((i) => i.label)).toEqual(["Los"]);
+		expect(groups[0].subgroups.map((g) => g.name)).toEqual(["Vacatures", "Diensten"]);
+		expect(groups[0].subgroups[0]).toMatchObject({ path: "Pagina's/Vacatures" });
+		expect(groups[0].subgroups[0].items.map((i) => i.label)).toEqual(["Vac1"]);
+		expect(groups[0].subgroups[1].items.map((i) => i.label)).toEqual(["Dienst1"]);
+	});
 });
