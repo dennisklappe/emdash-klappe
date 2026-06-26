@@ -158,7 +158,6 @@ export interface FieldWidgetOptions {
 	showPreview?: boolean; // For image/file
 	collection?: string; // For reference - which collection to reference
 	allowMultiple?: boolean; // For reference
-	max?: number; // For the "stars" widget - highest rating (default 5)
 	[key: string]: unknown;
 }
 
@@ -212,9 +211,8 @@ export interface Field {
 	defaultValue?: unknown;
 	validation?: FieldValidation;
 	/**
-	 * Editor widget for this field. A bare name selects a built-in widget
-	 * (currently `"stars"` for integer/number fields, using `options.max`).
-	 * A `"pluginId:widgetName"` value selects a plugin-provided widget.
+	 * Editor widget for this field, as `"pluginId:widgetName"`, selecting a
+	 * plugin-provided widget that overrides the default editor for its kind.
 	 */
 	widget?: string;
 	options?: FieldWidgetOptions;
