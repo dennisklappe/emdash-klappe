@@ -779,10 +779,20 @@ export function ContentEditor({
 					>
 						<div className="space-y-4">
 							{(() => {
-								// emdash-klappe: groepeer top-level velden visueel in inklapbare
-								// secties o.b.v. het label-prefix vóór de eerste ":" of "›"
-								// (bv. "Hero: titel" -> sectie "Hero"). Puur visueel: de
-								// veldvolgorde, namen en opslag blijven exact gelijk.
+								// emdash-klappe: groepeer de velden van de edit-pagina in
+								// inklapbare sectie-kaarten o.b.v. het label-prefix vóór de
+								// eerste ":" of "›" (bv. "Hero: titel" -> sectie "Hero", het
+								// veld toont als "titel"). Velden zonder prefix bundelen we in
+								// een "Algemeen"-kaart; velden met een eigen sectie-widget
+								// (blocks:*) renderen kaal (zonder eigen label) zodat ze hun
+								// eigen sectie-kaarten tonen. Puur visueel: namen, volgorde,
+								// waarden en opslag blijven gelijk.
+								const SEC_CARD =
+									"emdash-field-group rounded-lg border border-kumo-line bg-kumo-tint";
+								const SEC_SUMMARY =
+									"flex cursor-pointer select-none items-center justify-between gap-2 px-4 py-3 text-sm font-semibold text-kumo-default";
+								const SEC_COUNT = "text-xs font-normal text-kumo-subtle";
+								const SEC_BODY = "space-y-4 border-t border-kumo-line p-4";
 								const sectionOf = (f: FieldDescriptor): string | null => {
 									const m = (f?.label ?? "").match(/^\s*([^:›]+?)\s*[:›]\s+/);
 									return m ? m[1].trim() : null;
@@ -793,6 +803,8 @@ export function ContentEditor({
 									const rest = m?.[1]?.trim();
 									return rest && rest.length > 0 ? rest : label;
 								};
+								const isSelfSectioning = (f: FieldDescriptor): boolean =>
+									typeof f?.widget === "string" && f.widget.startsWith("blocks:");
 								const renderOne = (
 									name: string,
 									field: FieldDescriptor,
@@ -801,7 +813,11 @@ export function ContentEditor({
 									<FieldRenderer
 										key={`${name}:${item?.id ?? "new"}`}
 										name={name}
-										field={labelOverride ? { ...field, label: labelOverride } : field}
+										field={
+											labelOverride !== undefined
+												? { ...field, label: labelOverride }
+												: field
+										}
 										value={formData[name]}
 										onChange={handleFieldChange}
 										onEditorReady={
@@ -820,41 +836,74 @@ export function ContentEditor({
 										manifest={manifest}
 									/>
 								);
+								const card = (
+									key: string,
+									title: string,
+									count: number,
+									children: JSX.Element[],
+								) => (
+									<details key={key} open className={SEC_CARD}>
+										<summary className={SEC_SUMMARY}>
+											<span>{title}</span>
+											{count > 1 ? <span className={SEC_COUNT}>{count}</span> : null}
+										</summary>
+										<div className={SEC_BODY}>{children}</div>
+									</details>
+								);
 								const entries = Object.entries(fields);
 								const out: JSX.Element[] = [];
 								let i = 0;
 								while (i < entries.length) {
 									const [name, field] = entries[i];
-									const section = isDistractionFree ? null : sectionOf(field);
-									if (!section) {
+									if (isDistractionFree) {
 										out.push(renderOne(name, field));
 										i += 1;
 										continue;
 									}
-									const group: Array<[string, FieldDescriptor]> = [];
-									while (i < entries.length && sectionOf(entries[i][1]) === section) {
-										group.push(entries[i] as [string, FieldDescriptor]);
+									if (isSelfSectioning(field)) {
+										// Kaal, zonder eigen veldlabel: de widget toont eigen secties.
+										out.push(renderOne(name, field, ""));
 										i += 1;
-									}
-									if (group.length < 2) {
-										out.push(renderOne(group[0][0], group[0][1]));
 										continue;
 									}
-									out.push(
-										<details
-											key={`emdash-section:${section}`}
-											open
-											className="emdash-field-group rounded-md border"
-										>
-											<summary className="flex cursor-pointer select-none items-center justify-between gap-2 px-4 py-3 text-sm font-semibold">
-												<span>{section}</span>
-												<span className="text-xs font-normal opacity-50">{group.length}</span>
-											</summary>
-											<div className="space-y-4 border-t p-4">
-												{group.map(([n, f]) => renderOne(n, f, stripSection(f.label)))}
-											</div>
-										</details>,
-									);
+									const section = sectionOf(field);
+									if (section) {
+										const group: Array<[string, FieldDescriptor]> = [];
+										while (
+											i < entries.length &&
+											!isSelfSectioning(entries[i][1]) &&
+											sectionOf(entries[i][1]) === section
+										) {
+											group.push(entries[i] as [string, FieldDescriptor]);
+											i += 1;
+										}
+										out.push(
+											card(
+												`emdash-section:${section}`,
+												section,
+												group.length,
+												group.map(([n, f]) => renderOne(n, f, stripSection(f.label))),
+											),
+										);
+									} else {
+										const loose: Array<[string, FieldDescriptor]> = [];
+										while (
+											i < entries.length &&
+											!isSelfSectioning(entries[i][1]) &&
+											sectionOf(entries[i][1]) === null
+										) {
+											loose.push(entries[i] as [string, FieldDescriptor]);
+											i += 1;
+										}
+										out.push(
+											card(
+												`emdash-loose:${loose[0][0]}`,
+												"Algemeen",
+												loose.length,
+												loose.map(([n, f]) => renderOne(n, f)),
+											),
+										);
+									}
 								}
 								return out;
 							})()}
