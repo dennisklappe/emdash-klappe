@@ -778,19 +778,30 @@ export function ContentEditor({
 						)}
 					>
 						<div className="space-y-4">
-							{Object.entries(fields).map(([name, field]) => {
-								// Key by item id so all field editors remount cleanly when the
-								// underlying content item changes (e.g. switching translations).
-								// PortableTextEditor in particular freezes its initial content on
-								// mount; without this key, navigating between translations leaves
-								// the previous locale's body in the editor and silently overwrites
-								// the new translation on the next edit.
-								const fieldKey = `${name}:${item?.id ?? "new"}`;
-								const fieldEl = (
+							{(() => {
+								// emdash-klappe: groepeer top-level velden visueel in inklapbare
+								// secties o.b.v. het label-prefix vóór de eerste ":" of "›"
+								// (bv. "Hero: titel" -> sectie "Hero"). Puur visueel: de
+								// veldvolgorde, namen en opslag blijven exact gelijk.
+								const sectionOf = (f: FieldDescriptor): string | null => {
+									const m = (f?.label ?? "").match(/^\s*([^:›]+?)\s*[:›]\s+/);
+									return m ? m[1].trim() : null;
+								};
+								const stripSection = (label?: string): string | undefined => {
+									if (!label) return label;
+									const m = label.match(/^\s*[^:›]+?\s*[:›]\s+(.*)$/);
+									const rest = m?.[1]?.trim();
+									return rest && rest.length > 0 ? rest : label;
+								};
+								const renderOne = (
+									name: string,
+									field: FieldDescriptor,
+									labelOverride?: string,
+								) => (
 									<FieldRenderer
-										key={fieldKey}
+										key={`${name}:${item?.id ?? "new"}`}
 										name={name}
-										field={field}
+										field={labelOverride ? { ...field, label: labelOverride } : field}
 										value={formData[name]}
 										onChange={handleFieldChange}
 										onEditorReady={
@@ -809,8 +820,44 @@ export function ContentEditor({
 										manifest={manifest}
 									/>
 								);
-								return fieldEl;
-							})}
+								const entries = Object.entries(fields);
+								const out: JSX.Element[] = [];
+								let i = 0;
+								while (i < entries.length) {
+									const [name, field] = entries[i];
+									const section = isDistractionFree ? null : sectionOf(field);
+									if (!section) {
+										out.push(renderOne(name, field));
+										i += 1;
+										continue;
+									}
+									const group: Array<[string, FieldDescriptor]> = [];
+									while (i < entries.length && sectionOf(entries[i][1]) === section) {
+										group.push(entries[i] as [string, FieldDescriptor]);
+										i += 1;
+									}
+									if (group.length < 2) {
+										out.push(renderOne(group[0][0], group[0][1]));
+										continue;
+									}
+									out.push(
+										<details
+											key={`emdash-section:${section}`}
+											open
+											className="emdash-field-group rounded-md border"
+										>
+											<summary className="flex cursor-pointer select-none items-center justify-between gap-2 px-4 py-3 text-sm font-semibold">
+												<span>{section}</span>
+												<span className="text-xs font-normal opacity-50">{group.length}</span>
+											</summary>
+											<div className="space-y-4 border-t p-4">
+												{group.map(([n, f]) => renderOne(n, f, stripSection(f.label)))}
+											</div>
+										</details>,
+									);
+								}
+								return out;
+							})()}
 						</div>
 					</div>
 
