@@ -90,15 +90,22 @@ export function filterNavItemsByRole<T extends { minRole?: number }>(
  * affecting the underlying routes. Pure and exported so a unit test can verify
  * the filtering without mounting the sidebar.
  */
-export function filterHiddenSections<T extends { to: string }>(
-	items: T[],
-	hiddenSections?: string[],
-): T[] {
+export function filterHiddenSections<
+	T extends { to: string; params?: Record<string, string> },
+>(items: T[], hiddenSections?: string[]): T[] {
 	if (!hiddenSections || hiddenSections.length === 0) {
 		return items;
 	}
 	const hidden = new Set(hiddenSections);
-	return items.filter((item) => !hidden.has(item.to.replace(/^\//, "")));
+	return items.filter((item) => {
+		if (hidden.has(item.to.replace(/^\//, ""))) return false;
+		// All content collections share the same `to` ("/content/$collection")
+		// and carry their real slug in `params.collection`, so allow hiding a
+		// specific collection (e.g. "instellingen", "categorie") by that slug.
+		const collection = item.params?.collection;
+		if (collection && hidden.has(collection)) return false;
+		return true;
+	});
 }
 
 /** A folder node in the sidebar's collection tree. Folders can nest. */

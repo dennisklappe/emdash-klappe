@@ -17,6 +17,10 @@ A personal fork of [emdash](https://github.com/emdash-cms/emdash) (MIT licensed)
 
   Section cards use the `kumo` surface tokens (`bg-kumo-tint` / `border-kumo-line`) so they read correctly in both light and dark mode. Implemented in `packages/admin/src/components/ContentEditor.tsx` (search for `emdash-field-group`).
 
+- **Inline-editing a single row of a JSON list field on the page.** Stock emdash visual editing edits whole fields in place: a `string`/`text` field becomes contenteditable, anything else opens the admin. This fork adds editing **one row of a list/JSON field** (e.g. a `teksten` list of `{ sleutel, label, waarde }` rows) directly on the page. This sidesteps the practical ceiling of "one DB column per editable text" (Cloudflare D1 caps a table at ~100 columns), so a page with hundreds of editable strings can keep them all in a single JSON field and still edit each one inline.
+
+  **How it works:** put `data-emdash-ref` on the element with the field plus a `tekstKey` (the row's `sleutel`), e.g. `{ "collection": "...", "id": "...", "field": "teksten", "tekstKey": "hero.titel" }`. In edit mode the toolbar treats any ref carrying a `tekstKey` as inline-editable (regardless of the field's manifest kind), and on save it `GET`s the entry, updates the row whose `sleutel` matches, and `PUT`s the whole array back — so a misconfigured ref errors without writing (no corruption). Implemented in `packages/core/src/visual-editing/toolbar.ts` (search for `saveTekstRow` / `tekstKey`). Consuming code builds the ref by reading the list field's base ref from the edit proxy and adding `tekstKey` (a small `tekstRef(edit, field, key)` helper on the project side).
+
 Together these let the admin content sidebar read like a real site map. With
 `group` paths and `singleton`, collections render as nested folders where each
 one-of-a-kind page opens its editor directly:

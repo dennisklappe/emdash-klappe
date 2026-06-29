@@ -729,6 +729,36 @@ export function renderToolbar(config: ToolbarConfig): string {
     });
   }
 
+  // Klappe fork: inline-edit one row of a JSON list field (teksten).
+  // GET the entry, update the matching row by its sleutel, PUT the whole array.
+  // If anything is off it errors without writing (no corruption).
+  function saveTekstRow(collection, id, field, key, value) {
+    setSaveState("saving");
+    return ecFetch("/_emdash/api/content/" + encodeURIComponent(collection) + "/" + encodeURIComponent(id), { credentials: "same-origin" })
+      .then(function(res) { return res.ok ? res.json() : Promise.reject(new Error("GET " + res.status)); })
+      .then(function(payload) {
+        var item = (payload && payload.data && payload.data.item) ? payload.data.item
+          : (payload && payload.item) ? payload.item
+          : (payload && payload.data) ? payload.data : payload;
+        var data = (item && item.data) ? item.data : (item && item.liveData) ? item.liveData : item;
+        var arr = data ? data[field] : null;
+        if (typeof arr === "string") { arr = JSON.parse(arr); }
+        if (!Array.isArray(arr)) throw new Error("list field not found: " + field);
+        var found = false;
+        for (var i = 0; i < arr.length; i++) { if (arr[i] && arr[i].sleutel === key) { arr[i].waarde = value; found = true; break; } }
+        if (!found) throw new Error("row not found: " + key);
+        return ecFetch("/_emdash/api/content/" + encodeURIComponent(collection) + "/" + encodeURIComponent(id), {
+          method: "PUT", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: { [field]: arr } }),
+        });
+      })
+      .then(function(res) {
+        if (res && res.ok) { setSaveState("saved"); showUnpublishedChanges(collection, id); }
+        else { setSaveState("error"); console.error("Save row failed:", res && res.status); }
+      })
+      .catch(function(err) { setSaveState("error"); console.error("Save row failed:", err); });
+  }
+
   function showUnpublishedChanges(collection, id) {
     statusEl.innerHTML = '<span class="emdash-tb-badge emdash-tb-badge--pending">Unpublished changes</span>';
     publishBtn.style.display = "";
@@ -778,7 +808,10 @@ export function renderToolbar(config: ToolbarConfig): string {
 
       var newValue = (element.textContent || "").trim();
       if (newValue !== originalText.trim()) {
-        pendingSavePromise = saveField(annotation.collection, annotation.id, annotation.field, newValue).then(function() {
+        var saver = annotation.tekstKey
+          ? saveTekstRow(annotation.collection, annotation.id, annotation.field, annotation.tekstKey, newValue)
+          : saveField(annotation.collection, annotation.id, annotation.field, newValue);
+        pendingSavePromise = saver.then(function() {
           pendingSavePromise = null;
         }, function() {
           pendingSavePromise = null;
@@ -1282,7 +1315,9 @@ export function renderToolbar(config: ToolbarConfig): string {
               }
             }
 
-            if (manifestCache) {
+            if (annotation.tekstKey) {
+              dispatchInline("string");
+            } else if (manifestCache) {
               dispatchInline(getFieldKind(manifestCache, annotation.collection, annotation.field));
             } else {
               fetchManifest().then(function(manifest) {

@@ -1,0 +1,44 @@
+{
+	"name": "@emdash-cms/plugin-geocode",
+	"version": "0.1.0",
+	"description": "Geocoding field widget for EmDash CMS: turn an address (street, postcode, city) into lat/lng coordinates with one click, using the free OpenStreetMap Nominatim API (no API key)",
+	"type": "module",
+	"main": "src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./admin": "./src/admin.tsx"
+	},
+	"files": [
+		"src"
+	],
+	"keywords": [
+		"emdash",
+		"cms",
+		"plugin",
+		"field-widget",
+		"geocode",
+		"geocoding",
+		"nominatim",
+		"openstreetmap",
+		"coordinates",
+		"latitude",
+		"longitude"
+	],
+	"author": "Dennis Klappe",
+	"license": "MIT",
+	"peerDependencies": {
+		"emdash": "workspace:>=0.9.0",
+		"react": "^18.0.0 || ^19.0.0"
+	},
+	"devDependencies": {
+		"@types/react": "catalog:"
+	},
+	"scripts": {
+		"typecheck": "tsgo --noEmit"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/plugins/geocode"
+	}
+}
