@@ -587,17 +587,30 @@ export function renderToolbar(config: ToolbarConfig): string {
       return;
     }
 
-    var first = document.querySelector("[data-emdash-ref]");
-    if (!first) {
+    // klappe-fork: samengestelde pagina's tonen meerdere entries (header, pagina,
+    // footer, ...). Pak daarom niet zomaar de eerste data-emdash-ref (vaak de
+    // header, die geen draft heeft), maar de entry met onpublished changes als die
+    // er is, zodat de toolbar de status van de bewerkte pagina toont.
+    var els = document.querySelectorAll("[data-emdash-ref]");
+    if (!els.length) {
       statusEl.innerHTML = "";
       publishBtn.style.display = "none";
       return;
     }
 
     try {
-      var ref = JSON.parse(first.getAttribute("data-emdash-ref"));
+      var firstRef = null, draftRef = null;
+      for (var i = 0; i < els.length; i++) {
+        try {
+          var parsed = JSON.parse(els[i].getAttribute("data-emdash-ref"));
+          if (!parsed || !parsed.status) continue;
+          if (!firstRef) firstRef = parsed;
+          if (parsed.status === "draft" || parsed.hasDraft) { draftRef = parsed; break; }
+        } catch (e) {}
+      }
+      var ref = draftRef || firstRef;
+      if (!ref || !ref.status) return;
       entryRef = ref;
-      if (!ref.status) return;
 
       // Show admin link
       var adminLink = document.getElementById("emdash-tb-admin");

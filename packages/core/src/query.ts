@@ -823,7 +823,20 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 				});
 
 				if (!draftError && draftEntry) {
-					return successResult(wrapEntry(draftEntry), {
+					// klappe-fork: serve the draft CONTENT, but take the entry-level
+					// edit annotation (status + hasDraft) from the BASE entry. The draft
+					// revision snapshot lacks draftRevisionId/liveRevisionId, so deriving
+					// the annotation from it yields hasDraft:false and the on-page toolbar
+					// shows "Published" with no Publish button despite unpublished changes.
+					const wrapped = wrapEntry(draftEntry);
+					if (isEditMode) {
+						wrapped.edit = createEditable(
+							type,
+							entryDatabaseId(baseEntry),
+							entryEditOptions(baseEntry),
+						);
+					}
+					return successResult(wrapped, {
 						isPreview: serveDrafts,
 						fallbackLocale,
 						cacheHint: cacheHint ?? {},
