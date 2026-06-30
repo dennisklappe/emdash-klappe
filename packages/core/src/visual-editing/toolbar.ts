@@ -1313,8 +1313,15 @@ export function renderToolbar(config: ToolbarConfig): string {
 
             function dispatchInline(kind) {
               closeImagePopover();
-              // Portable Text is edited in-page by InlinePortableTextEditor — do not open admin
+              // Portable Text is edited in-page by InlinePortableTextEditor. In
+              // click-to-activate mode the editor renders static prose by default
+              // and listens for this event to mount + focus the live editor.
               if (kind === "portableText") {
+                e.preventDefault();
+                e.stopPropagation();
+                document.dispatchEvent(new CustomEvent("emdash:activate-pt", {
+                  detail: { collection: annotation.collection, id: annotation.id, field: annotation.field },
+                }));
                 return;
               }
               e.preventDefault();

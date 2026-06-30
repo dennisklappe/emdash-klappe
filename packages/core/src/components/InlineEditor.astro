@@ -13,9 +13,18 @@ export interface Props {
 	collection: string;
 	entryId: string;
 	field: string;
+	/**
+	 * Pre-rendered static HTML for the field (the site's own Portable Text
+	 * render). When provided together with `activateOnClick`, the editor shows
+	 * this static prose by default and only mounts the live TipTap editor when
+	 * the field is clicked — mirroring the string-field inline-edit UX.
+	 */
+	html?: string;
+	/** Opt into click-to-activate (hover outline → click to edit → blur to save). */
+	activateOnClick?: boolean;
 }
 
-const { value, collection, entryId, field } = Astro.props;
+const { value, collection, entryId, field, html, activateOnClick } = Astro.props;
 ---
 
 <InlinePortableTextEditor
@@ -24,4 +33,6 @@ const { value, collection, entryId, field } = Astro.props;
 	collection={collection}
 	entryId={entryId}
 	field={field}
+	html={html}
+	activateOnClick={activateOnClick}
 />

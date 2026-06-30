@@ -1724,11 +1724,66 @@ function InlineMediaPicker({
 
 // ── Component ──────────────────────────────────────────────────────
 
+/**
+ * List styling for both the live editor (`.emdash-inline-editor`) and the
+ * static prose shown while inactive (`.emdash-pt-static`).
+ *
+ * Tailwind's preflight (loaded by the host site) resets `ul,ol` to
+ * `list-style:none; margin:0; padding:0`, which flattens lists in the editor.
+ * These rules restore visible disc/decimal markers with prose-like spacing so
+ * the editor matches the published page. Selectors are class-scoped (0,1,1)
+ * so they win over preflight's bare `ul`/`ol` (0,0,1).
+ */
+const ptListStyles = `
+	.emdash-inline-editor ul,
+	.emdash-pt-static ul {
+		list-style: disc;
+		margin: 0 0 1rem;
+		padding-left: 1.5rem;
+	}
+	.emdash-inline-editor ol,
+	.emdash-pt-static ol {
+		list-style: decimal;
+		margin: 0 0 1rem;
+		padding-left: 1.5rem;
+	}
+	.emdash-inline-editor li,
+	.emdash-pt-static li {
+		margin: 0.25rem 0;
+		padding-left: 0.25rem;
+		display: list-item;
+	}
+	.emdash-inline-editor li > p,
+	.emdash-pt-static li > p {
+		margin: 0;
+	}
+	.emdash-inline-editor li > ul,
+	.emdash-inline-editor li > ol,
+	.emdash-pt-static li > ul,
+	.emdash-pt-static li > ol {
+		margin-bottom: 0;
+	}
+`;
+
 export interface InlinePortableTextEditorProps {
 	value: PTBlock[];
 	collection: string;
 	entryId: string;
 	field: string;
+	/**
+	 * Pre-rendered static HTML for the field (the host site's own Portable Text
+	 * render). When supplied together with `activateOnClick`, this is shown by
+	 * default and the live TipTap editor only mounts on click.
+	 */
+	html?: string;
+	/**
+	 * Click-to-activate mode. Default `false` keeps the legacy always-on editor
+	 * (used by the generic `PortableText.astro` path). When `true`, the field
+	 * renders as static prose with a `data-emdash-ref` (so the toolbar gives it
+	 * the same hover outline as string fields) and the editor activates on click,
+	 * saving and reverting to static on blur.
+	 */
+	activateOnClick?: boolean;
 }
 
 export function InlinePortableTextEditor({
@@ -1736,10 +1791,25 @@ export function InlinePortableTextEditor({
 	collection,
 	entryId,
 	field,
+	html,
+	activateOnClick = false,
 }: InlinePortableTextEditorProps) {
 	const initialRef = React.useRef(value);
 	const savingRef = React.useRef(false);
 	const editorRef = React.useRef<ReturnType<typeof useEditor>>(null);
+
+	// Click-to-activate state. When activateOnClick is false the editor is always
+	// active (legacy behaviour). The static prose (rendered from `html`) is shown
+	// while inactive; it's refreshed from the editor on blur so edits stay visible
+	// before a full reload.
+	const [active, setActive] = React.useState(!activateOnClick);
+	const [staticHtml, setStaticHtml] = React.useState(html ?? "");
+
+	// data-emdash-ref the toolbar parses to recognise this field (hover + click).
+	const fieldRef = React.useMemo(
+		() => JSON.stringify({ collection, id: entryId, field }),
+		[collection, entryId, field],
+	);
 
 	// Media picker state
 	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
@@ -1832,7 +1902,13 @@ export function InlinePortableTextEditor({
 	const editor = useEditor({
 		extensions: [
 			StarterKit.configure({
-				heading: { levels: [1, 2, 3] },
+				// Allow all heading levels the rendered content can use. Limiting to
+				// [1,2,3] meant an h4/h5/h6 block from the site's Portable Text could
+				// not be represented on load, so ProseMirror coerced it to level 1 —
+				// making e.g. an <h4> (1rem) jump to hero size the moment the editor
+				// mounted. The slash/bubble menus still only offer 1-3; this just lets
+				// existing deeper headings round-trip at their real level.
+				heading: { levels: [1, 2, 3, 4, 5, 6] },
 				dropcursor: { color: "#3b82f6", width: 2 },
 				// Replaced with InlineCodeBlockExtension below (adds language picker).
 				codeBlock: false,
@@ -1924,24 +2000,75 @@ export function InlinePortableTextEditor({
 		[editor, save],
 	);
 
-	// Save on blur — but not when interacting with slash menu or media picker
+	// Save on blur — but not when interacting with the bubble menu, slash menu or
+	// media picker. In click-to-activate mode, blur also reverts to static prose
+	// (refreshed from the editor so the latest edit stays visible pre-reload).
 	const handleBlur = React.useCallback(
 		(e: React.FocusEvent<HTMLDivElement>) => {
 			if (mediaPickerOpen) return;
 			const related = e.relatedTarget instanceof HTMLElement ? e.relatedTarget : null;
 			if (related && e.currentTarget.contains(related)) return;
-			// Don't save if focus moved to the slash menu (portalled to body)
+			// Don't save/deactivate if focus moved to one of the editor's portalled
+			// surfaces (bubble menu / slash menu / media picker live outside the tree).
+			if (related?.closest(".emdash-bubble-menu")) return;
 			if (related?.closest(".emdash-slash-menu")) return;
 			if (related?.closest(".emdash-media-picker")) return;
 			void save();
+			if (activateOnClick) {
+				if (editorRef.current) setStaticHtml(editorRef.current.getHTML());
+				setActive(false);
+			}
 		},
-		[save, mediaPickerOpen],
+		[save, mediaPickerOpen, activateOnClick],
 	);
+
+	// Activate on the toolbar's click dispatch for THIS field, then focus.
+	React.useEffect(() => {
+		if (!activateOnClick) return;
+		function onActivate(e: Event) {
+			const detail = (e as CustomEvent).detail as
+				| { collection?: string; id?: string; field?: string }
+				| undefined;
+			if (
+				detail &&
+				detail.collection === collection &&
+				detail.id === entryId &&
+				detail.field === field
+			) {
+				setActive(true);
+			}
+		}
+		document.addEventListener("emdash:activate-pt", onActivate);
+		return () => document.removeEventListener("emdash:activate-pt", onActivate);
+	}, [activateOnClick, collection, entryId, field]);
+
+	// Focus the editor once it has mounted after activation.
+	React.useEffect(() => {
+		if (!active || !activateOnClick) return;
+		const raf = requestAnimationFrame(() => editorRef.current?.commands.focus("end"));
+		return () => cancelAnimationFrame(raf);
+	}, [active, activateOnClick]);
 
 	if (!editor) return null;
 
+	// Inactive (click-to-activate) state: render the site's static prose with the
+	// field ref so the toolbar gives it the hover outline + routes the click here.
+	if (activateOnClick && !active) {
+		return (
+			<>
+				<div
+					data-emdash-ref={fieldRef}
+					className="emdash-pt-static"
+					// eslint-disable-next-line react/no-danger -- host-rendered, trusted Portable Text HTML
+					dangerouslySetInnerHTML={{ __html: staticHtml }}
+				/>
+				<style>{ptListStyles}</style>
+			</>
+		);
+	}
+
 	return (
-		<div onBlur={handleBlur}>
+		<div onBlur={handleBlur} {...(activateOnClick ? { "data-emdash-editing": "" } : {})}>
 			<InlineBubbleMenu editor={editor} />
 			<EditorContent editor={editor} />
 			<InlineSlashMenu
@@ -2069,6 +2196,7 @@ export function InlinePortableTextEditor({
 				.emdash-inline-editor:focus {
 					outline: none;
 				}
+				${ptListStyles}
 				.emdash-plugin-block-placeholder {
 					margin: 0.75rem 0;
 					padding: 0.625rem 0.875rem;
