@@ -534,30 +534,50 @@ function convertPTMarks(marks: string[], markDefs: Map<string, PTMarkDef>): Mark
 function InlineBubbleMenu({ editor }: { editor: Editor }) {
 	const [showLinkInput, setShowLinkInput] = React.useState(false);
 	const [linkUrl, setLinkUrl] = React.useState("");
+	const [linkNewTab, setLinkNewTab] = React.useState(false);
 	const inputRef = React.useRef<HTMLInputElement>(null);
 
 	React.useEffect(() => {
 		if (showLinkInput) {
-			const existingUrl = editor.getAttributes("link").href || "";
-			setLinkUrl(existingUrl);
+			setLinkUrl(editor.getAttributes("link").href || "");
+			setLinkNewTab(editor.getAttributes("link").target === "_blank");
 			setTimeout(() => inputRef.current?.focus(), 0);
 		}
 	}, [showLinkInput, editor]);
 
+	// Normalise a user-entered link. A bare domain ("test.com", "www.x.com")
+	// must become absolute, otherwise the browser resolves it relative to the
+	// current page (…/doosletters/test.com). Leave real schemes, root-relative
+	// (/…), anchors (#…) and protocol-relative (//…) URLs untouched.
+	const normaliseUrl = (raw: string): string => {
+		const url = raw.trim();
+		if (!url) return url;
+		if (/^(https?:|mailto:|tel:|\/|#)/i.test(url)) return url;
+		return `https://${url}`;
+	};
+
 	const handleSetLink = () => {
-		if (linkUrl.trim() === "") {
+		const url = linkUrl.trim();
+		if (url === "") {
 			editor.chain().focus().extendMarkRange("link").unsetLink().run();
 		} else {
-			editor.chain().focus().extendMarkRange("link").setLink({ href: linkUrl.trim() }).run();
+			editor
+				.chain()
+				.focus()
+				.extendMarkRange("link")
+				.setLink({ href: normaliseUrl(url), target: linkNewTab ? "_blank" : null })
+				.run();
 		}
 		setShowLinkInput(false);
 		setLinkUrl("");
+		setLinkNewTab(false);
 	};
 
 	const handleRemoveLink = () => {
 		editor.chain().focus().extendMarkRange("link").unsetLink().run();
 		setShowLinkInput(false);
 		setLinkUrl("");
+		setLinkNewTab(false);
 	};
 
 	const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -588,6 +608,15 @@ function InlineBubbleMenu({ editor }: { editor: Editor }) {
 						onKeyDown={handleKeyDown}
 						className="emdash-bubble-link-input"
 					/>
+					<button
+						type="button"
+						className={`emdash-bubble-btn ${linkNewTab ? "emdash-bubble-btn--active" : ""}`}
+						onClick={() => setLinkNewTab((v) => !v)}
+						aria-pressed={linkNewTab}
+						title={linkNewTab ? "Opens in new tab (on)" : "Open in new tab"}
+					>
+						⧉
+					</button>
 					<button
 						type="button"
 						className="emdash-bubble-btn"
@@ -1927,7 +1956,11 @@ export function InlinePortableTextEditor({
 			}),
 			Underline,
 			Link.configure({
+				// Never follow the link while editing — a click should place the
+				// cursor / select the link so it can be changed or removed, not
+				// navigate away.
 				openOnClick: false,
+				enableClickSelection: true,
 				HTMLAttributes: { class: "underline text-blue-600 dark:text-blue-400" },
 			}),
 			Placeholder.configure({
@@ -2059,6 +2092,13 @@ export function InlinePortableTextEditor({
 				<div
 					data-emdash-ref={fieldRef}
 					className="emdash-pt-static"
+					onClick={(e) => {
+						// In edit mode a click must activate the editor (the toolbar
+						// handles that via data-emdash-ref), never follow a link —
+						// otherwise a linked word just navigates away and can never be
+						// edited or unlinked.
+						if ((e.target as HTMLElement).closest("a")) e.preventDefault();
+					}}
 					// eslint-disable-next-line react/no-danger -- host-rendered, trusted Portable Text HTML
 					dangerouslySetInnerHTML={{ __html: staticHtml }}
 				/>
